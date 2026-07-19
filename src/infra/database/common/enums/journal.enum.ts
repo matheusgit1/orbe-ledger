@@ -1,0 +1,29 @@
+export enum JournalStatus {
+  PENDING = 'PENDING',
+  POSTED = 'POSTED',
+  REVERSED = 'REVERSED',
+  FAILED = 'FAILED',
+  CANCELLED = 'CANCELLED'
+}
+
+export enum JournalType {
+  TRANSFER = 'TRANSFER',
+  PIX = 'PIX',
+  TED = 'TED',
+  DOC = 'DOC',
+  FEE = 'FEE',
+  SETTLEMENT = 'SETTLEMENT',
+  REFUND = 'REFUND',
+  REVERSAL = 'REVERSAL',
+  HOLD = 'HOLD',
+  RELEASE = 'RELEASE',
+  ADJUSTMENT = 'ADJUSTMENT',
+  CASHBACK = 'CASHBACK',
+  TAX = 'TAX',
+  INTEREST = 'INTEREST'
+}
+
+export enum EntrySide {
+  DEBIT = 'DEBIT',
+  CREDIT = 'CREDIT'
+}

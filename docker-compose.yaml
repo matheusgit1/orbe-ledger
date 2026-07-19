@@ -1,0 +1,24 @@
+name: orbe-ledger
+services:
+  db:
+    container_name: orbe-ledger-db
+    image: postgres
+    restart: always
+    # set shared memory limit when using docker compose
+    shm_size: 128mb
+    environment:
+      POSTGRES_PASSWORD: orbe-ledger
+      POSTGRES_USER: orbe-ledger
+      POSTGRES_DB: main-ledger
+    ports:
+      - 5432:5432
+
+  pgadmin:
+    container_name: orbe-ledger-pgadmin
+    image: dpage/pgadmin4
+    restart: always
+    ports:
+      - 8080:80
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: orbe-ledger

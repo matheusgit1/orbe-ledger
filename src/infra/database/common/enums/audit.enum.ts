@@ -1,0 +1,25 @@
+export enum AuditAction {
+  CREATE = 'CREATE',
+  UPDATE = 'UPDATE',
+  DELETE = 'DELETE',
+  POST = 'POST',
+  REVERSE = 'REVERSE',
+  APPROVE = 'APPROVE',
+  REJECT = 'REJECT',
+  LOCK = 'LOCK',
+  UNLOCK = 'UNLOCK',
+  SUSPEND = 'SUSPEND',
+  ACTIVATE = 'ACTIVATE'
+}
+
+export enum AuditEntity {
+  ORGANIZATION = 'ORGANIZATION',
+  LEDGER = 'LEDGER',
+  ACCOUNT = 'ACCOUNT',
+  JOURNAL = 'JOURNAL',
+  ENTRY = 'ENTRY',
+  TRANSACTION = 'TRANSACTION',
+  SAGA = 'SAGA',
+  HOLD = 'HOLD',
+  LIMIT = 'LIMIT'
+}
