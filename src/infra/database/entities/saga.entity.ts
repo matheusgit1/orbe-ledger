@@ -1,4 +1,3 @@
-
 import {
   Entity,
   Column,
@@ -12,7 +11,11 @@ import {
 } from 'typeorm';
 
 import { SagaStep } from './saga-step.entity';
-import { SagaStatus, SagaStepStatus, SagaStepType } from '../common/enums/saga.enum';
+import {
+  SagaStatus,
+  SagaStepStatus,
+  SagaStepType,
+} from '../common/enums/saga.enum';
 import { Transaction } from './transaction.entity';
 
 @Entity('sagas')
@@ -50,7 +53,7 @@ export class Saga {
   contextData: Record<string, any>;
 
   @Column({ type: 'jsonb', nullable: true, name: 'error_details' })
-  errorDetails: Record<string, any>;
+  errorDetails?: Record<string, any>;
 
   @Column({ type: 'timestamp', nullable: true, name: 'started_at' })
   startedAt: Date;
@@ -151,13 +154,13 @@ export class Saga {
   }
 
   getCurrentStep(): SagaStep | undefined {
-    return this.steps?.find(step => step.step === this.currentStep);
+    return this.steps?.find((step) => step.step === this.currentStep);
   }
 
   getNextStep(): SagaStep | undefined {
     if (!this.steps) return undefined;
     const nextStepNumber = this.currentStep + 1;
-    return this.steps.find(step => step.step === nextStepNumber);
+    return this.steps.find((step) => step.step === nextStepNumber);
   }
 
   advanceStep(): void {
@@ -184,7 +187,7 @@ export class Saga {
     transaction: Transaction,
     workflowId: string,
     steps: Partial<SagaStep>[],
-    contextData?: Record<string, any>
+    contextData?: Record<string, any>,
   ): Saga {
     const saga = new Saga();
     saga.transactionId = transaction.id;

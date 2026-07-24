@@ -50,7 +50,7 @@ export class Entry {
   amountOriginalCurrency: number;
 
   @Column({ type: 'text', nullable: true })
-  description: string;
+  description?: string;
 
   @Column({ type: 'int', name: 'sequence' })
   sequence: number;
@@ -59,7 +59,7 @@ export class Entry {
   holdId: string | null;
 
   @Column({ type: 'jsonb', nullable: true })
-  metadata: Record<string, any>;
+  metadata?: Record<string, any>;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

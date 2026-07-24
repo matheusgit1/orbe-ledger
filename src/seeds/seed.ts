@@ -1,272 +1,218 @@
-// import { AccountNature, AccountOwnerType, AccountStatus, NormalBalance } from '../infra/database/common/enums/account.enum';
-// import { CurrencyCode } from '../infra/database/common/enums/currency.enum';
-// import { LedgerCode, LedgerStatus } from '../infra/database/common/enums/ledger.enum';
-// import { OrganizationStatus } from '../infra/database/common/enums/organization.enum';
-// import { AccountType } from '../infra/database/entities/account-type.entity';
-// import { Account } from '../infra/database/entities/account.entity';
-// import { Currency } from '../infra/database/entities/currency.entity';
-// import { Ledger } from '../infra/database/entities/ledger.entity';
-// import { Organization } from '../infra/database/entities/organization.entity';
-// import { DataSource } from 'typeorm';
+import { AccountOwnerType, AccountStatus, AccountNature, NormalBalance } from '../infra/database/common/enums/account.enum';
+import { CurrencyCode } from '../infra/database/common/enums/currency.enum';
+import { LedgerCode, LedgerStatus } from '../infra/database/common/enums/ledger.enum';
+import { OrganizationStatus } from '../infra/database/common/enums/organization.enum';
+import { AccountType } from '../infra/database/entities/account-type.entity';
+import { Account } from '../infra/database/entities/account.entity';
+import { Currency } from '../infra/database/entities/currency.entity';
+import { Ledger } from '../infra/database/entities/ledger.entity';
+import { Organization } from '../infra/database/entities/organization.entity';
+import { BalanceSnapshot } from '../infra/database/entities/balance-snapshot.entity';
+import { DataSource } from 'typeorm';
+import { v4 as uuidv4 } from 'uuid';
 
+export async function seedDatabase(dataSource: DataSource) {
+  console.log('🌱 Starting database seed...');
 
-// export async function seedDatabase(dataSource: DataSource) {
-//   console.log('🌱 Starting database seed...');
+  // 1. Criar Currencies primeiro (precisa para Organization)
+  const currencyRepo = dataSource.getRepository(Currency);
+  let brlCurrency = await currencyRepo.findOne({ where: { code: CurrencyCode.BRL } });
 
-//   // 1. Criar Organization
-//   const orgRepo = dataSource.getRepository(Organization);
-//   let organization = await orgRepo.findOne({ where: { document: '12345678000199' } });
-  
-//   if (!organization) {
-//     organization = orgRepo.create({
-//       name: 'Orbe Ledger',
-//       legalName: 'Orbe Ledger Tecnologia Ltda',
-//       document: '12345678000199',
-//       status: OrganizationStatus.ACTIVE,
-//       timezone: 'America/Sao_Paulo',
-//       baseCurrency: 'BRL',
-//       metadata: { environment: 'development' },
-//     });
-//     await orgRepo.save(organization);
-//     console.log('✅ Organization created');
-//   }
+  if (!brlCurrency) {
+    brlCurrency = currencyRepo.create({
+      code: CurrencyCode.BRL,
+      numericCode: '986',
+      symbol: 'R$',
+      decimalPlaces: 2,
+    });
+    await currencyRepo.save(brlCurrency);
+    console.log('✅ BRL Currency created');
+  }
 
-//   // 2. Criar Currencies
-//   const currencyRepo = dataSource.getRepository(Currency);
-//   const currencies = [
-//     { code: CurrencyCode.BRL, numericCode: '986', symbol: 'R$', decimalPlaces: 2 },
-//     { code: CurrencyCode.USD, numericCode: '840', symbol: 'US$', decimalPlaces: 2 },
-//     { code: CurrencyCode.EUR, numericCode: '978', symbol: '€', decimalPlaces: 2 },
-//   ];
+  // 2. Criar Organization
+  const orgRepo = dataSource.getRepository(Organization);
+  let organization = await orgRepo.findOne({ where: { document: '12345678000199' } });
 
-//   for (const currencyData of currencies) {
-//     let currency = await currencyRepo.findOne({ where: { code: currencyData.code } });
-//     if (!currency) {
-//       currency = currencyRepo.create(currencyData);
-//       await currencyRepo.save(currency);
-//     }
-//   }
-//   console.log('✅ Currencies created');
+  if (!organization) {
+    organization = new Organization();
+    organization.name = 'Orbe Ledger';
+    organization.legalName = 'Orbe Ledger Tecnologia Ltda';
+    organization.document = '12345678000199';
+    organization.status = OrganizationStatus.ACTIVE;
+    organization.timezone = 'America/Sao_Paulo';
+    organization.baseCurrencyId = brlCurrency.id;
+    organization.metadata = { environment: 'development' };
+    await orgRepo.save(organization);
+    console.log('✅ Organization created');
+  }
 
-//   // 3. Criar Ledger
-//   const ledgerRepo = dataSource.getRepository(Ledger);
-//   let ledger = await ledgerRepo.findOne({ 
-//     where: { organizationId: organization.id, code: LedgerCode.MAIN } 
-//   });
+  // 3. Criar Ledger
+  const ledgerRepo = dataSource.getRepository(Ledger);
+  let ledger = await ledgerRepo.findOne({
+    where: { organizationId: organization.id, code: LedgerCode.MAIN },
+  });
 
-//   if (!ledger) {
-//     ledger = ledgerRepo.create({
-//       organizationId: organization.id,
-//       code: LedgerCode.MAIN,
-//       name: 'Ledger Principal',
-//       description: 'Ledger principal para operações',
-//       status: LedgerStatus.ACTIVE,
-//     });
-//     await ledgerRepo.save(ledger);
-//     console.log('✅ Ledger created');
-//   }
+  if (!ledger) {
+    ledger = new Ledger();
+    ledger.organizationId = organization.id;
+    ledger.code = LedgerCode.MAIN;
+    ledger.name = 'Ledger Principal';
+    ledger.description = 'Ledger principal para operações';
+    ledger.status = LedgerStatus.ACTIVE;
+    await ledgerRepo.save(ledger);
+    console.log('✅ Ledger created');
+  }
 
-//   // 4. Criar Account Types
-//   const accountTypeRepo = dataSource.getRepository(AccountType);
-//   const accountTypes = [
-//     { code: '1', name: 'ATIVO', nature: AccountNature.ASSET, normalBalance: NormalBalance.DEBIT, level: 0 },
-//     { code: '1.1', name: 'CAIXA', nature: AccountNature.ASSET, normalBalance: NormalBalance.DEBIT, level: 1, parentCode: '1' },
-//     { code: '1.2', name: 'BANCOS', nature: AccountNature.ASSET, normalBalance: NormalBalance.DEBIT, level: 1, parentCode: '1' },
-//     { code: '2', name: 'PASSIVO', nature: AccountNature.LIABILITY, normalBalance: NormalBalance.CREDIT, level: 0 },
-//     { code: '2.1', name: 'FORNECEDORES', nature: AccountNature.LIABILITY, normalBalance: NormalBalance.CREDIT, level: 1, parentCode: '2' },
-//     { code: '3', name: 'PATRIMÔNIO LÍQUIDO', nature: AccountNature.EQUITY, normalBalance: NormalBalance.CREDIT, level: 0 },
-//     { code: '4', name: 'RECEITA', nature: AccountNature.REVENUE, normalBalance: NormalBalance.CREDIT, level: 0 },
-//     { code: '5', name: 'DESPESA', nature: AccountNature.EXPENSE, normalBalance: NormalBalance.DEBIT, level: 0 },
-//   ];
+  // 4. Criar Account Types
+  const accountTypeRepo = dataSource.getRepository(AccountType);
+  let assetAccountType = await accountTypeRepo.findOne({ where: { code: 'ASSET' } });
 
-//   for (const typeData of accountTypes) {
-//     let accountType = await accountTypeRepo.findOne({ where: { code: typeData.code } });
-//     if (!accountType) {
-//       const parent = typeData.parentCode 
-//         ? await accountTypeRepo.findOne({ where: { code: typeData.parentCode } })
-//         : null;
-      
-//       accountType = accountTypeRepo.create({
-//         code: typeData.code,
-//         name: typeData.name,
-//         nature: typeData.nature,
-//         normalBalance: typeData.normalBalance,
-//         level: typeData.level,
-//         parentId: parent?.id || null,
-//         allowPosting: true,
-//       });
-//       await accountTypeRepo.save(accountType);
-//     }
-//   }
-//   console.log('✅ Account Types created');
+  if (!assetAccountType) {
+    assetAccountType = AccountType.create(
+      'ASSET',
+      'Ativo',
+      AccountNature.ASSET,
+      NormalBalance.DEBIT,
+      undefined,
+      0
+    );
+    await accountTypeRepo.save(assetAccountType);
+    console.log('✅ Account Type ASSET created');
+  }
 
-//   // 5. Criar Accounts de exemplo
-//   const accountRepo = dataSource.getRepository(Account);
-//   const brlCurrency = await currencyRepo.findOne({ where: { code: CurrencyCode.BRL } });
-//   const accountTypeCash = await accountTypeRepo.findOne({ where: { code: '1.1' } });
-//   const accountTypeBank = await accountTypeRepo.findOne({ where: { code: '1.2' } });
+  // 5. Criar Accounts para teste PIX
+  const accountRepo = dataSource.getRepository(Account);
+  const balanceSnapshotRepo = dataSource.getRepository(BalanceSnapshot);
 
-//   if (brlCurrency && accountTypeCash && accountTypeBank) {
-//     // Conta Caixa
-//     let cashAccount = await accountRepo.findOne({ 
-//       where: { ledgerId: ledger.id, code: 'CASH-001' } 
-//     });
-//     if (!cashAccount) {
-//       cashAccount = accountRepo.create({
-//         ledgerId: ledger.id,
-//         accountTypeId: accountTypeCash.id,
-//         ownerId: organization.id,
-//         ownerType: AccountOwnerType.SYSTEM,
-//         code: 'CASH-001',
-//         name: 'Caixa Principal',
-//         description: 'Caixa principal da organização',
-//         currencyId: brlCurrency.id,
-//         status: AccountStatus.ACTIVE,
-//         allowDebit: true,
-//         allowCredit: true,
-//         allowNegative: false,
-//         isSystem: true,
-//         isLeaf: true,
-//         metadata: { type: 'main_cash' },
-//       });
-//       await accountRepo.save(cashAccount);
-//     }
+  // Conta Pagador (Cliente)
+  let payerAccount = await accountRepo.findOne({
+    where: { ledgerId: ledger.id, code: 'PAYER-001' },
+  });
+  if (!payerAccount) {
+    payerAccount = accountRepo.create({
+      ledgerId: ledger.id,
+      accountTypeId: assetAccountType.id,
+      ownerId: uuidv4(),
+      ownerType: AccountOwnerType.CUSTOMER,
+      code: 'PAYER-001',
+      name: 'João Silva (Pagador)',
+      description: 'Conta do cliente pagador para teste PIX',
+      currencyId: brlCurrency.id,
+      status: AccountStatus.ACTIVE,
+      allowDebit: true,
+      allowCredit: true,
+      allowNegative: false,
+      isSystem: false,
+      isLeaf: true,
+      metadata: { customerId: 'PAYER-001', document: '123.456.789-00' },
+    });
+    await accountRepo.save(payerAccount);
+    console.log('✅ Payer account created');
 
-//     // Conta Banco
-//     let bankAccount = await accountRepo.findOne({ 
-//       where: { ledgerId: ledger.id, code: 'BANK-001' } 
-//     });
-//     if (!bankAccount) {
-//       bankAccount = accountRepo.create({
-//         ledgerId: ledger.id,
-//         accountTypeId: accountTypeBank.id,
-//         ownerId: organization.id,
-//         ownerType: AccountOwnerType.SYSTEM,
-//         code: 'BANK-001',
-//         name: 'Banco Principal',
-//         description: 'Conta bancária principal',
-//         currencyId: brlCurrency.id,
-//         status: AccountStatus.ACTIVE,
-//         allowDebit: true,
-//         allowCredit: true,
-//         allowNegative: false,
-//         isSystem: true,
-//         isLeaf: true,
-//         metadata: { bank: 'Banco do Brasil', agency: '0001', account: '12345-6' },
-//       });
-//       await accountRepo.save(bankAccount);
-//     }
+    // Criar saldo inicial
+    const payerBalance = BalanceSnapshot.createInitial(payerAccount.id, brlCurrency.id);
+    payerBalance.available = 10000;
+    payerBalance.book = 10000;
+    await balanceSnapshotRepo.save(payerBalance);
+    console.log('  💰 Payer initial balance: R$ 10.000,00');
+  }
 
-//     // Conta Cliente
-//     let customerAccount = await accountRepo.findOne({ 
-//       where: { ledgerId: ledger.id, code: 'CUST-001' } 
-//     });
-//     if (!customerAccount) {
-//       customerAccount = accountRepo.create({
-//         ledgerId: ledger.id,
-//         accountTypeId: accountTypeBank.id,
-//         ownerId: 'c123e456-7e89-12d3-a456-426614174000', // UUID fictício
-//         ownerType: AccountOwnerType.CUSTOMER,
-//         code: 'CUST-001',
-//         name: 'Cliente Exemplo',
-//         description: 'Conta do cliente exemplo',
-//         currencyId: brlCurrency.id,
-//         status: AccountStatus.ACTIVE,
-//         allowDebit: true,
-//         allowCredit: true,
-//         allowNegative: false,
-//         isSystem: false,
-//         isLeaf: true,
-//         metadata: { customerId: 'CUST-001', document: '123.456.789-00' },
-//       });
-//       await accountRepo.save(customerAccount);
-//     }
+  // Conta Destinatário (Cliente)
+  let receiverAccount = await accountRepo.findOne({
+    where: { ledgerId: ledger.id, code: 'RECEIVER-001' },
+  });
+  if (!receiverAccount) {
+    receiverAccount = accountRepo.create({
+      ledgerId: ledger.id,
+      accountTypeId: assetAccountType.id,
+      ownerId: uuidv4(),
+      ownerType: AccountOwnerType.CUSTOMER,
+      code: 'RECEIVER-001',
+      name: 'Maria Santos (Destinatário)',
+      description: 'Conta do cliente destinatário para teste PIX',
+      currencyId: brlCurrency.id,
+      status: AccountStatus.ACTIVE,
+      allowDebit: true,
+      allowCredit: true,
+      allowNegative: false,
+      isSystem: false,
+      isLeaf: true,
+      metadata: { customerId: 'RECEIVER-001', document: '987.654.321-00' },
+    });
+    await accountRepo.save(receiverAccount);
+    console.log('✅ Receiver account created');
 
-//     // 6. Criar saldo inicial para as contas
-// console.log('\n💰 Creating initial balances...');
+    // Criar saldo inicial
+    const receiverBalance = BalanceSnapshot.createInitial(receiverAccount.id, brlCurrency.id);
+    receiverBalance.available = 5000;
+    receiverBalance.book = 5000;
+    await balanceSnapshotRepo.save(receiverBalance);
+    console.log('  💰 Receiver initial balance: R$ 5.000,00');
+  }
 
-// // Função para criar saldo inicial via Journal
-// async function createInitialBalance(
-//   accountId: string,
-//   amount: number,
-//   ledgerId: string,
-//   currencyId: string
-// ) {
-//   // Verifica se já tem saldo
-//   const result = await dataSource.query(
-//     `SELECT * FROM get_account_balance_at_time($1, $2)`,
-//     [accountId, new Date()]
-//   );
-  
-//   const currentBalance = parseFloat(result[0]?.balance || '0');
-  
-//   if (currentBalance === 0 && amount > 0) {
-//     // Cria journal de saldo inicial
-//     const journalRepo = dataSource.getRepository('Journal');
-//     const entryRepo = dataSource.getRepository('Entry');
-    
-//     const journal = journalRepo.create({
-//       ledgerId,
-//       journalNumber: `INITIAL-${Date.now()}-${Math.random().toString(36).substring(7)}`,
-//       status: 'POSTED',
-//       type: 'ADJUSTMENT',
-//       description: 'Saldo inicial',
-//       reference: 'INITIAL_BALANCE',
-//       source: 'SEED',
-//       createdBy: 'SYSTEM',
-//       postedAt: new Date(),
-//     });
-//     await dataSource.manager.save(journal);
+  // Contas de Reserva do Sistema (para fluxo PIX)
+  const reserveAccounts = [
+    {
+      code: 'RESERVE-PAYER',
+      name: 'Reserva PSP Pagador',
+      description: 'Conta de reserva do PSP pagador para liquidação SPI',
+    },
+    {
+      code: 'RESERVE-SPI',
+      name: 'Reserva SPI',
+      description: 'Conta transitória do SPI para liquidação',
+    },
+    {
+      code: 'RESERVE-RECEIVER',
+      name: 'Reserva PSP Recebedor',
+      description: 'Conta de reserva do PSP recebedor para liquidação SPI',
+    },
+  ];
 
-//     const entry = entryRepo.create({
-//       journalId: journal.id,
-//       accountId: accountId,
-//       side: 'DEBIT',
-//       amount: amount,
-//       currencyId: currencyId,
-//       exchangeRate: 1,
-//       description: 'Saldo inicial',
-//       sequence: 1,
-//     });
-//     await dataSource.manager.save(entry);
+  const reserveAccountIds: Record<string, string> = {};
 
-//     console.log(`  ✅ Initial balance of R$ ${amount} created for account`);
-//     return true;
-//   }
-//   return false;
-// }
+  for (const reserveData of reserveAccounts) {
+    let reserveAccount = await accountRepo.findOne({
+      where: { ledgerId: ledger.id, code: reserveData.code },
+    });
+    if (!reserveAccount) {
+      reserveAccount = accountRepo.create({
+        ledgerId: ledger.id,
+        accountTypeId: assetAccountType.id,
+        ownerId: organization.id,
+        ownerType: AccountOwnerType.SYSTEM,
+        code: reserveData.code,
+        name: reserveData.name,
+        description: reserveData.description,
+        currencyId: brlCurrency.id,
+        status: AccountStatus.ACTIVE,
+        allowDebit: true,
+        allowCredit: true,
+        allowNegative: true,
+        isSystem: true,
+        isLeaf: true,
+        metadata: { type: 'reserve_account' },
+      });
+      await accountRepo.save(reserveAccount);
+      console.log(`✅ ${reserveData.name} created`);
 
-// // Depois de criar as accounts, adicionar:
-// if (cashAccount) {
-//   await createInitialBalance(
-//     cashAccount.id,
-//     10000, // R$ 10.000,00
-//     ledger.id,
-//     brlCurrency.id
-//   );
-// }
+      // Criar saldo inicial
+      const reserveBalance = BalanceSnapshot.createInitial(reserveAccount.id, brlCurrency.id);
+      reserveBalance.available = 1000000;
+      reserveBalance.book = 1000000;
+      await balanceSnapshotRepo.save(reserveBalance);
+      console.log(`  💰 ${reserveData.name} initial balance: R$ 1.000.000,00`);
+    }
+    reserveAccountIds[reserveData.code] = reserveAccount.id;
+  }
 
-// if (bankAccount) {
-//   await createInitialBalance(
-//     bankAccount.id,
-//     50000, // R$ 50.000,00
-//     ledger.id,
-//     brlCurrency.id
-//   );
-// }
-
-// if (customerAccount) {
-//   await createInitialBalance(
-//     customerAccount.id,
-//     5000, // R$ 5.000,00
-//     ledger.id,
-//     brlCurrency.id
-//   );
-// }
-
-//     console.log('✅ Accounts created');
-//   }
-  
-
-//   console.log('🎉 Seed completed successfully!');
-// }
+  console.log('\n🎉 Seed completed successfully!');
+  console.log('\n📋 Account IDs for PIX Transfer Test:');
+  console.log(`  Payer Account ID: ${payerAccount.id}`);
+  console.log(`  Receiver Account ID: ${receiverAccount.id}`);
+  console.log(`  Payer Reserve ID: ${reserveAccountIds['RESERVE-PAYER']}`);
+  console.log(`  SPI Reserve ID: ${reserveAccountIds['RESERVE-SPI']}`);
+  console.log(`  Receiver Reserve ID: ${reserveAccountIds['RESERVE-RECEIVER']}`);
+  console.log(`  Ledger ID: ${ledger.id}`);
+  console.log(`  Currency ID: ${brlCurrency.id}`);
+}

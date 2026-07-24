@@ -1,14 +1,15 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
-import { MovementsService } from './movments.service';
+import { Controller, Post, Body, HttpCode, HttpStatus } from '@nestjs/common';
+import { PixSameInstitutionService } from './movments.service';
 import { MovementsObjectDto } from './dto/transfer-object.dto';
-import { TransferService } from 'src/core/services/transfer.service';
+import { PixRequestDto } from './dto/pix-request.dto';
 
 @Controller('transfer')
 export class MovementsController {
-  constructor(private readonly movementsService: MovementsService) { }
+  constructor(private readonly movementsService: PixSameInstitutionService) {}
 
   @Post('create')
-  async create(@Body() body: MovementsObjectDto) {
-    return await this.movementsService.create(body);
+  @HttpCode(HttpStatus.OK)
+  async create(@Body() body: PixRequestDto) {
+    return await this.movementsService.executePixSameInstitution(body);
   }
 }

@@ -128,6 +128,42 @@ export class Account {
   @OneToMany(() => Limit, (limit) => limit.account)
   limits: Limit[];
 
+  @Column({ type: 'uuid', name: 'institution_id', nullable: true })
+  institutionId: string | null;
+
+  @Column({ type: 'varchar', length: 10, name: 'bank_code', nullable: true })
+  bankCode: string | null; // Código do banco (001 = Banco do Brasil, 237 = Bradesco, etc.)
+
+  @Column({ type: 'varchar', length: 20, name: 'branch_code', nullable: true })
+  branchCode: string | null; // Agência
+
+  @Column({
+    type: 'varchar',
+    length: 20,
+    name: 'account_number',
+    nullable: true,
+  })
+  accountNumber: string | null; // Número da conta
+
+  @Column({
+    type: 'varchar',
+    length: 10,
+    name: 'account_digit',
+    nullable: true,
+  })
+  accountDigit: string | null; // Dígito da conta
+
+  @Column({ type: 'boolean', default: false, name: 'is_internal' })
+  isInternal: boolean; // Conta interna da instituição
+
+  @Column({
+    type: 'varchar',
+    length: 20,
+    name: 'institution_type',
+    nullable: true,
+  })
+  institutionType: string | null; // 'BANK', 'FINTECH', 'INTERNAL'
+
   // Métodos de domínio
   isActive(): boolean {
     return this.status === AccountStatus.ACTIVE;

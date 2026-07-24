@@ -6,31 +6,21 @@ import { OrmModule } from '../../infra/database/orm/orm.module';
 import { LoggingInterceptor } from '../../interceptors/logging.interceptor';
 import { ResponseInterceptor } from '../../interceptors/response.interceptor';
 import { TracingMiddleware } from '../../middlewares/tracing.middleware';
-import { AccountsModule } from '../../legacy/acounts/accounts.module';
-import { AuditModule } from '../../legacy/audit/audit.module';
-import { AcountTypesModule } from '../../legacy/acount-types/acount-types.module';
-import { CurrenciesModule } from '../../legacy/currencies/currencies.module';
-import { EntryModule } from '../../legacy/entry/entry.module';
-import { HoldModule } from '../../legacy/hold/hold.module';
 import { EventEmitterModule } from '@nestjs/event-emitter';
-import { JournalsModule } from '../../legacy/journal/journal.module';
-import { LedgersModule } from '../../legacy/ledgers/ledgers.module';
-import { OrganizationsModule } from '../../legacy/organizations/organizations.module';
-import { OutboxModule } from '../../legacy/outbox/outbox.module';
-import { SagaModule } from '../../legacy/saga/saga.module';
-import { TransactionsModule } from '../../legacy/transactions/transactions.module';
 import { MovementsModule } from '../transfer/movments.module';
 import { HealthModule } from '../health/health.module';
 import { CoreModule } from 'src/core/core.module';
+import { PixModule } from '../pix/pix.module';
 
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
-    EventEmitterModule.forRoot({ }),
+    EventEmitterModule.forRoot({}),
     OrmModule,
     HealthModule,
-    MovementsModule
+    // MovementsModule,
+    PixModule
   ],
   controllers: [],
   providers: [
@@ -45,4 +35,3 @@ export class AppModule implements NestModule {
   }
 }
 
-    

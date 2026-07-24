@@ -1,4 +1,3 @@
-
 import {
   Entity,
   Column,
@@ -10,25 +9,30 @@ import {
   Index,
   UpdateDateColumn,
 } from 'typeorm';
-import { EntrySide, JournalStatus, JournalType } from '../common/enums/journal.enum';
+import {
+  EntrySide,
+  JournalStatus,
+  JournalType,
+} from '../common/enums/journal.enum';
 import { Ledger } from './ledger.entity';
 import { Entry } from './entry.entity';
 import { Audit } from './audit.entity';
 import { Outbox } from './outbox.entity';
 import { Transaction } from './transaction.entity';
 
-
 @Entity('journals')
 @Index(['ledgerId', 'journalNumber'], { unique: true })
 @Index(['correlationId'])
 @Index(['causationId'])
-@Index(['idempotencyKey'], { unique: true, where: '"idempotencyKey" IS NOT NULL' })
+@Index(['idempotencyKey'], {
+  unique: true,
+  where: '"idempotency_key" IS NOT NULL',
+})
 @Index(['status', 'postedAt'])
 @Index(['reference'])
 export class Journal {
   @PrimaryGeneratedColumn('uuid')
   id: string;
-
 
   @Column({ type: 'uuid', name: 'ledger_id' })
   ledgerId: string;
@@ -55,29 +59,44 @@ export class Journal {
   @Column({ type: 'varchar', length: 100, nullable: true })
   reference: string;
 
-  @Column({ type: 'varchar', length: 100, nullable: true, name: 'external_reference' })
+  @Column({
+    type: 'varchar',
+    length: 100,
+    nullable: true,
+    name: 'external_reference',
+  })
   externalReference: string;
 
-  @Column({ type: 'uuid', nullable: true, name: 'correlation_id' })
+  @Column({
+    type: 'uuid',
+    // length: 150,
+    nullable: true,
+    name: 'correlation_id',
+  })
   correlationId: string;
 
-  @Column({ type: 'uuid', nullable: true, name: 'causation_id' })
+  @Column({
+    type: 'uuid',
+    //  length: 150,
+    nullable: true,
+    name: 'causation_id',
+  })
   causationId: string;
 
-  @Column({ type: 'varchar', length: 100, nullable: true })
+  @Column({ type: 'varchar', length: 100, nullable: true, name: 'idempotency_key' })
   idempotencyKey: string;
 
   @Column({ type: 'varchar', length: 50, name: 'source' })
   source: string; // API, WEBHOOK, BATCH, SYSTEM, etc.
 
   @Column({ type: 'timestamp', nullable: true, name: 'posted_at' })
-  postedAt: Date;
+  postedAt?: Date;
 
   @Column({ type: 'varchar', length: 100, name: 'created_by', nullable: true })
   createdBy: string;
 
   @Column({ type: 'jsonb', nullable: true })
-  metadata: Record<string, any>;
+  metadata?: Record<string, any>;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
@@ -122,13 +141,13 @@ export class Journal {
 
   getTotalDebit(): number {
     return this.entries
-      .filter(e => e.side === EntrySide.DEBIT)
+      .filter((e) => e.side === EntrySide.DEBIT)
       .reduce((sum, e) => sum + Number(e.amount), 0);
   }
 
   getTotalCredit(): number {
     return this.entries
-      .filter(e => e.side === EntrySide.CREDIT)
+      .filter((e) => e.side === EntrySide.CREDIT)
       .reduce((sum, e) => sum + Number(e.amount), 0);
   }
 
@@ -136,14 +155,26 @@ export class Journal {
     return this.getTotalDebit() === this.getTotalCredit();
   }
 
+  getDebitEntry(): Entry[] {
+    return this.entries.filter((e) => e.side === EntrySide.DEBIT);
+  }
+
+  getCreditEntry(): Entry[] {
+    return this.entries.filter((e) => e.side === EntrySide.CREDIT);
+  }
+
   // Validação de domínio
   validate(): void {
     if (!this.isBalanced()) {
-      throw new Error(`Journal ${this.journalNumber} is not balanced. Debit: ${this.getTotalDebit()}, Credit: ${this.getTotalCredit()}`);
+      throw new Error(
+        `Journal ${this.journalNumber} is not balanced. Debit: ${this.getTotalDebit()}, Credit: ${this.getTotalCredit()}`,
+      );
     }
 
     if (this.entries.length < 2) {
-      throw new Error(`Journal ${this.journalNumber} must have at least 2 entries (debit and credit)`);
+      throw new Error(
+        `Journal ${this.journalNumber} must have at least 2 entries (debit and credit)`,
+      );
     }
   }
 }

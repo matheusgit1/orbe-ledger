@@ -10,13 +10,15 @@ import {
   JoinColumn,
   Index,
 } from 'typeorm';
-import { TransactionStatus, TransactionType } from '../common/enums/transaction.enum';
+import {
+  TransactionStatus,
+  TransactionType,
+} from '../common/enums/transaction.enum';
 import { Account } from './account.entity';
 import { Currency } from './currency.entity';
 import { Journal } from './journal.entity';
 import { Hold } from './hold.entity';
 import { Saga } from './saga.entity';
-
 
 @Entity('transactions')
 @Index(['correlationId'])
@@ -53,11 +55,11 @@ export class Transaction {
   @Column({ type: 'uuid', name: 'destination_account_id' })
   destinationAccountId: string;
 
-  @Column({ type: 'uuid', nullable: true, name: 'correlation_id' })
+  @Column({ type: 'varchar', nullable: true, name: 'correlation_id' })
   correlationId: string;
 
   @Column({ type: 'varchar', length: 100, nullable: true, name: 'external_id' })
-  externalId: string;
+  externalId?: string;
 
   @Column({ type: 'uuid', nullable: true, name: 'workflow_id' })
   workflowId: string;
@@ -65,7 +67,11 @@ export class Transaction {
   @Column({ type: 'jsonb', nullable: true })
   metadata: Record<string, any>;
 
-  @Column({ type: 'timestamp', name: 'started_at', default: () => 'CURRENT_TIMESTAMP' })
+  @Column({
+    type: 'timestamp',
+    name: 'started_at',
+    default: () => 'CURRENT_TIMESTAMP',
+  })
   startedAt: Date;
 
   @Column({ type: 'timestamp', nullable: true, name: 'completed_at' })
@@ -145,7 +151,9 @@ export class Transaction {
 
   retry(): void {
     if (!this.canRetry()) {
-      throw new Error(`Transaction cannot be retried. Retry count: ${this.retryCount}`);
+      throw new Error(
+        `Transaction cannot be retried. Retry count: ${this.retryCount}`,
+      );
     }
     this.status = TransactionStatus.PENDING;
     this.errorDetails = null;
@@ -154,7 +162,9 @@ export class Transaction {
   // Validação
   validate(): void {
     if (this.amount <= 0) {
-      throw new Error(`Transaction amount must be greater than 0, received ${this.amount}`);
+      throw new Error(
+        `Transaction amount must be greater than 0, received ${this.amount}`,
+      );
     }
 
     if (this.originAccountId === this.destinationAccountId) {

@@ -50,7 +50,7 @@ export class SagaStep {
   compensation: Record<string, any>;
 
   @Column({ type: 'jsonb', nullable: true, name: 'error_details' })
-  errorDetails: Record<string, any>;
+  errorDetails?: Record<string, any>;
 
   @Column({ type: 'int', default: 0, name: 'retry_count' })
   retryCount: number;
