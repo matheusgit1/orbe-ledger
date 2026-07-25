@@ -17,6 +17,7 @@ import { Journal } from './journal.entity';
 @Index(['traceId'])
 @Index(['requestId'])
 export class Audit {
+  protected 
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
@@ -88,6 +89,7 @@ export class Audit {
     audit.after = after;
     audit.metadata = metadata;
 
+    audit.validate();
     if (before && after) {
       audit.changes = this.calculateDiff(before, after);
     }

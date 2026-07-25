@@ -42,11 +42,9 @@ export class BalanceSnapshotService {
     if (!snapshot) {
       snapshot = BalanceSnapshot.createInitial(accountId, currencyId);
     }
-    console.log('snapshot antes: ', snapshot);
 
     snapshot.applyEntry(amount, side, entryId, journalId);
 
-    console.log('snapshot depois: ', snapshot);
     snapshot.validate();
 
     const savedSnapshot = await repository.save(snapshot);

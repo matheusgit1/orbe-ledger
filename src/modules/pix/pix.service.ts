@@ -109,6 +109,7 @@ export class PixService {
         this.accountRepository.findById(body.destinationAccountId),
       ]);
 
+
       if (!receiverAccount) {
         throw new Error(
           `Conta destino ${body.destinationAccountId} não encontrada`,
@@ -123,6 +124,7 @@ export class PixService {
         receiverAccount.id,
       ]);
 
+      //metodo ok
       await this.validateRules(
         queryRunner,
         payerAccount,

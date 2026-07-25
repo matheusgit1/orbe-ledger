@@ -178,7 +178,7 @@ export class Journal {
       );
     }
 
-    if (this.entries.length < 2) {
+    if (this.entries.length && this.entries.length > 2) {
       throw new Error(
         `Journal ${this.journalNumber} must have at least 2 entries (debit and credit)`,
       );

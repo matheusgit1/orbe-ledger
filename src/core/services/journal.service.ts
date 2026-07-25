@@ -78,18 +78,24 @@ export class JournalService {
     try {
       this.logger.log(`[${hash}] Criando journal tipo ${dto.type}`);
 
+      //metodo ok
       this.validateDoubleEntry(dto.entries);
 
+      //metodo ok
       await this.validateAccounts(dto.entries);
 
+      //metodo ok
       await this.validateCurrencies(dto.entries);
 
+      //metodo ok
       const journalNumber = await this.generateJournalNumber();
 
+      //metodo ok
       const savedJournal = await this.createJournal(queryRunner, {
         ledgerId: dto.ledgerId,
         type: dto.type,
         status: dto.status,
+        number: journalNumber,
         description: dto.description,
         reference: dto.reference,
         externalReference: dto.externalReference,
@@ -105,9 +111,8 @@ export class JournalService {
 
       const savedEntries: Entry[] = [];
       let sequence = 1;
-      console.log('=== DTO ENTRIES ===');
-      console.log(dto.entries);
       for (const entryDto of dto.entries) {
+        //metodo ok
         const entry = this.entryService.createEntry({
           journalId: savedJournal.id,
           accountId: entryDto.accountId,
@@ -115,11 +120,12 @@ export class JournalService {
           amount: entryDto.amount,
           currencyId: entryDto.currencyId,
           exchangeRate: 1,
-          description: entryDto.description || '',
+          description: entryDto.description,
           sequence: sequence++,
           holdId: entryDto.holdId,
           metadata: entryDto.metadata,
         });
+        //metodo ok
         const savedEntry = await this.entryService.saveEntry(
           queryRunner,
           entry,
@@ -128,6 +134,7 @@ export class JournalService {
       }
 
       for (const entry of savedEntries) {
+        //metodo ok
         await this.balanceSnapshotService.updateBalance(
           queryRunner,
           entry.accountId,
@@ -142,6 +149,7 @@ export class JournalService {
       savedJournal.setStatus(JournalStatus.POSTED);
       await this.saveJournal(queryRunner, savedJournal);
       for (const entry of savedEntries) {
+        //metodo ok
         await this.entryService.saveEntry(queryRunner, entry);
       }
 
@@ -235,8 +243,11 @@ export class JournalService {
         }),
       );
 
+      const journalNumber = await this.generateJournalNumber();
+
       const reversalJournal = await this.createJournal(qr, {
         ledgerId: originalJournal.ledgerId,
+        number: journalNumber,
         type: JournalType.REVERSAL,
         status: JournalStatus.PENDING,
         description: `Reversão do journal ${originalJournal.journalNumber}: ${reason}`,
@@ -334,8 +345,11 @@ export class JournalService {
         }),
       );
 
+      const journalNumber = await this.generateJournalNumber();
+
       const reversalJournal = await this.createJournal(qr, {
         ledgerId: originalJournal.ledgerId,
+        number: journalNumber,
         type: JournalType.REVERSAL,
         status: JournalStatus.PENDING,
         description: `Reversão parcial do journal ${originalJournal.journalNumber}: ${reason}`,
@@ -950,11 +964,11 @@ export class JournalService {
 
   async createJournal(
     queryRunner: QueryRunner,
-    options: CreateJournalOptions,
+    options: CreateJournalOptions & { number: string },
   ): Promise<Journal> {
     const journal = Journal.create({
       ledgerId: options.ledgerId,
-      journalNumber: await this.generateJournalNumber(),
+      journalNumber: options.number,
       type: JournalType.PIX,
       description: 'Transferência PIX',
       source: 'PIX_SAME_INSTITUTION',

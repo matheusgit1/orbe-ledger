@@ -13,7 +13,7 @@ export interface CreateEntryOptions {
   currencyId: string;
   sequence: number;
   exchangeRate: number;
-  description: string;
+  description?: string;
   holdId?: string;
   metadata?: Record<string, any>;
 }
