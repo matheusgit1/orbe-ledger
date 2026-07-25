@@ -25,6 +25,7 @@ import {
 } from 'src/infra/database/common/enums/audit.enum';
 import { TransactionService } from 'src/core/services/transaction.service';
 import { EntityType } from 'src/infra/database/common/enums/idempotency.status';
+import { LimiteService } from 'src/core/services/limite.service';
 
 @Injectable()
 export class PixService {
@@ -39,6 +40,7 @@ export class PixService {
     private readonly auditService: AuditService,
     private readonly transactionService: TransactionService,
     private readonly dataSource: DataSource,
+    private readonly limiteService: LimiteService,
   ) {}
 
   private async getQueryRunner() {
@@ -256,12 +258,16 @@ export class PixService {
     amount: number,
     pixKey?: string,
   ) {
+    //metodo ok
     this.validatePayerAccount(payerAccount);
 
+    //metodo ok
     this.validateReceiverAccount(receiverAccount);
 
+    //metodo ok
     this.validateTransfer(payerAccount, receiverAccount, amount);
 
+    //metodo ok
     const availableBalance = await this.balanceService.getAvailableBalance(
       queryRunner,
       payerAccount.id,
@@ -274,6 +280,7 @@ export class PixService {
       );
     }
 
+    //metodo ok
     await this.validateLimits(payerAccount.id, amount, queryRunner);
 
     if (pixKey) {
@@ -354,11 +361,11 @@ export class PixService {
   private async validateLimits(
     accountId: string,
     amount: number,
-    queryRunner: any,
+    queryRunner: QueryRunner,
   ): Promise<void> {
     // Buscar limites da conta
-    const limits = await queryRunner.manager.findOne('Limit', {
-      where: { accountId },
+    const limits = await this.limiteService.findByFilters(queryRunner, {
+      accountId,
     });
 
     if (!limits) {

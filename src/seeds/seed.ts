@@ -1,6 +1,13 @@
-import { AccountOwnerType, AccountStatus, AccountNature, NormalBalance } from '../infra/database/common/enums/account.enum';
-import { CurrencyCode } from '../infra/database/common/enums/currency.enum';
-import { LedgerCode, LedgerStatus } from '../infra/database/common/enums/ledger.enum';
+import {
+  AccountOwnerType,
+  AccountStatus,
+  AccountNature,
+  NormalBalance,
+} from '../infra/database/common/enums/account.enum';
+import {
+  LedgerCode,
+  LedgerStatus,
+} from '../infra/database/common/enums/ledger.enum';
 import { OrganizationStatus } from '../infra/database/common/enums/organization.enum';
 import { AccountType } from '../infra/database/entities/account-type.entity';
 import { Account } from '../infra/database/entities/account.entity';
@@ -14,13 +21,12 @@ import { v4 as uuidv4 } from 'uuid';
 export async function seedDatabase(dataSource: DataSource) {
   console.log('🌱 Starting database seed...');
 
-  // 1. Criar Currencies primeiro (precisa para Organization)
   const currencyRepo = dataSource.getRepository(Currency);
-  let brlCurrency = await currencyRepo.findOne({ where: { code: CurrencyCode.BRL } });
+  let brlCurrency = await currencyRepo.findOne({ where: { code: 'BRL' } });
 
   if (!brlCurrency) {
     brlCurrency = currencyRepo.create({
-      code: CurrencyCode.BRL,
+      code: 'BRL',
       numericCode: '986',
       symbol: 'R$',
       decimalPlaces: 2,
@@ -31,7 +37,9 @@ export async function seedDatabase(dataSource: DataSource) {
 
   // 2. Criar Organization
   const orgRepo = dataSource.getRepository(Organization);
-  let organization = await orgRepo.findOne({ where: { document: '12345678000199' } });
+  let organization = await orgRepo.findOne({
+    where: { document: '12345678000199' },
+  });
 
   if (!organization) {
     organization = new Organization();
@@ -65,7 +73,9 @@ export async function seedDatabase(dataSource: DataSource) {
 
   // 4. Criar Account Types
   const accountTypeRepo = dataSource.getRepository(AccountType);
-  let assetAccountType = await accountTypeRepo.findOne({ where: { code: 'ASSET' } });
+  let assetAccountType = await accountTypeRepo.findOne({
+    where: { code: 'ASSET' },
+  });
 
   if (!assetAccountType) {
     assetAccountType = AccountType.create(
@@ -74,7 +84,7 @@ export async function seedDatabase(dataSource: DataSource) {
       AccountNature.ASSET,
       NormalBalance.DEBIT,
       undefined,
-      0
+      0,
     );
     await accountTypeRepo.save(assetAccountType);
     console.log('✅ Account Type ASSET created');
@@ -110,7 +120,10 @@ export async function seedDatabase(dataSource: DataSource) {
     console.log('✅ Payer account created');
 
     // Criar saldo inicial
-    const payerBalance = BalanceSnapshot.createInitial(payerAccount.id, brlCurrency.id);
+    const payerBalance = BalanceSnapshot.createInitial(
+      payerAccount.id,
+      brlCurrency.id,
+    );
     payerBalance.available = 10000;
     payerBalance.book = 10000;
     await balanceSnapshotRepo.save(payerBalance);
@@ -143,7 +156,10 @@ export async function seedDatabase(dataSource: DataSource) {
     console.log('✅ Receiver account created');
 
     // Criar saldo inicial
-    const receiverBalance = BalanceSnapshot.createInitial(receiverAccount.id, brlCurrency.id);
+    const receiverBalance = BalanceSnapshot.createInitial(
+      receiverAccount.id,
+      brlCurrency.id,
+    );
     receiverBalance.available = 5000;
     receiverBalance.book = 5000;
     await balanceSnapshotRepo.save(receiverBalance);
@@ -197,7 +213,10 @@ export async function seedDatabase(dataSource: DataSource) {
       console.log(`✅ ${reserveData.name} created`);
 
       // Criar saldo inicial
-      const reserveBalance = BalanceSnapshot.createInitial(reserveAccount.id, brlCurrency.id);
+      const reserveBalance = BalanceSnapshot.createInitial(
+        reserveAccount.id,
+        brlCurrency.id,
+      );
       reserveBalance.available = 1000000;
       reserveBalance.book = 1000000;
       await balanceSnapshotRepo.save(reserveBalance);
@@ -212,7 +231,9 @@ export async function seedDatabase(dataSource: DataSource) {
   console.log(`  Receiver Account ID: ${receiverAccount.id}`);
   console.log(`  Payer Reserve ID: ${reserveAccountIds['RESERVE-PAYER']}`);
   console.log(`  SPI Reserve ID: ${reserveAccountIds['RESERVE-SPI']}`);
-  console.log(`  Receiver Reserve ID: ${reserveAccountIds['RESERVE-RECEIVER']}`);
+  console.log(
+    `  Receiver Reserve ID: ${reserveAccountIds['RESERVE-RECEIVER']}`,
+  );
   console.log(`  Ledger ID: ${ledger.id}`);
   console.log(`  Currency ID: ${brlCurrency.id}`);
 }

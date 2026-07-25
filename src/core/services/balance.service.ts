@@ -12,12 +12,17 @@ export class BalanceService {
   constructor(
     @InjectRepository(BalanceSnapshot)
     private balanceSnapshotRepository: Repository<BalanceSnapshot>,
-  ) { }
+  ) {}
 
-  async getAvailableBalance(queryRunner: QueryRunner, accountId: string, currencyId: string): Promise<number> {
+  async getAvailableBalance(
+    queryRunner: QueryRunner,
+    accountId: string,
+    currencyId: string,
+  ): Promise<number> {
     const snapshot = await queryRunner.manager.findOne(BalanceSnapshot, {
       where: { accountId, currencyId },
       order: { version: 'DESC' },
+      lock: { mode: 'pessimistic_read' },
     });
 
     if (!snapshot) {
@@ -27,7 +32,11 @@ export class BalanceService {
     return snapshot.available;
   }
 
-  async getBookBalance(queryRunner: QueryRunner, accountId: string, currencyId: string): Promise<number> {
+  async getBookBalance(
+    queryRunner: QueryRunner,
+    accountId: string,
+    currencyId: string,
+  ): Promise<number> {
     const snapshot = await queryRunner.manager.findOne(BalanceSnapshot, {
       where: { accountId, currencyId },
       order: { version: 'DESC' },
@@ -40,7 +49,11 @@ export class BalanceService {
     return snapshot.book;
   }
 
-  async getHeldBalance(queryRunner: QueryRunner, accountId: string, currencyId: string): Promise<number> {
+  async getHeldBalance(
+    queryRunner: QueryRunner,
+    accountId: string,
+    currencyId: string,
+  ): Promise<number> {
     const snapshot = await queryRunner.manager.findOne(BalanceSnapshot, {
       where: { accountId, currencyId },
       order: { version: 'DESC' },

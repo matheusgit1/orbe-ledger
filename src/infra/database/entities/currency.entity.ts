@@ -8,11 +8,9 @@ import {
   OneToMany,
   Index,
 } from 'typeorm';
-import { CurrencyCode } from '../common/enums/currency.enum';
 import { Account } from './account.entity';
 import { BalanceSnapshot } from './balance-snapshot.entity';
 import { Entry } from './entry.entity';
-
 
 @Entity('currencies')
 @Index(['code'], { unique: true })
@@ -21,11 +19,11 @@ export class Currency {
   id: string;
 
   @Column({
-    type: 'enum',
-    enum: CurrencyCode,
+    type: 'varchar',
     unique: true,
+    nullable: true,
   })
-  code: CurrencyCode;
+  code: string;
 
   @Column({ type: 'varchar', length: 3, name: 'numeric_code' })
   numericCode: string;
@@ -52,7 +50,10 @@ export class Currency {
   @OneToMany(() => Account, (account) => account.currency)
   accounts: Account[];
 
-  @OneToMany(() => BalanceSnapshot, (balanceSnapshot) => balanceSnapshot.currency)
+  @OneToMany(
+    () => BalanceSnapshot,
+    (balanceSnapshot) => balanceSnapshot.currency,
+  )
   balanceSnapshots: BalanceSnapshot[];
 
   @OneToMany(() => Entry, (entry) => entry.currency)

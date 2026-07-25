@@ -1,7 +1,7 @@
 // src/core/services/journal.service.ts
 import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource, LessThan } from 'typeorm';
+import { Repository, DataSource, LessThan, Like } from 'typeorm';
 import { Journal } from '../../infra/database/entities/journal.entity';
 import { Entry } from '../../infra/database/entities/entry.entity';
 import { BalanceSnapshot } from '../../infra/database/entities/balance-snapshot.entity';
@@ -21,6 +21,9 @@ import { AuditService } from './audit.service';
 import { QueryRunner } from 'typeorm/browser';
 import { EntryService } from './entry.service';
 import { EntityType } from 'src/infra/database/common/enums/idempotency.status';
+import { AccountsService } from './accounts.service';
+import { CurrencyService } from './currency.service';
+
 export interface CreateEntryDto {
   accountId: string;
   side: EntrySide;
@@ -63,6 +66,8 @@ export class JournalService {
     private readonly outboxService: OutboxService,
     private readonly auditService: AuditService,
     private readonly entryService: EntryService,
+    private readonly accountService: AccountsService,
+    private readonly currencyService: CurrencyService,
   ) {}
 
   async registerJournal(
@@ -75,22 +80,22 @@ export class JournalService {
 
       this.validateDoubleEntry(dto.entries);
 
-      await this.validateAccounts(dto.entries, queryRunner);
+      await this.validateAccounts(dto.entries);
 
-      await this.validateCurrencies(dto.entries, queryRunner);
+      await this.validateCurrencies(dto.entries);
 
-      const journalNumber = await this.generateJournalNumber(queryRunner);
+      const journalNumber = await this.generateJournalNumber();
 
       const savedJournal = await this.createJournal(queryRunner, {
         ledgerId: dto.ledgerId,
         type: dto.type,
         status: dto.status,
-        description: dto.description || '',
-        reference: dto.reference || '',
-        externalReference: dto.externalReference || '',
-        correlationId: dto.correlationId || '',
-        causationId: dto.causationId || '',
-        idempotencyKey: dto.idempotencyKey || '',
+        description: dto.description,
+        reference: dto.reference,
+        externalReference: dto.externalReference,
+        correlationId: dto.correlationId,
+        causationId: dto.causationId,
+        idempotencyKey: dto.idempotencyKey,
         source: dto.source,
         createdBy: dto.createdBy || 'SYSTEM',
         metadata: dto.metadata,
@@ -368,10 +373,6 @@ export class JournalService {
     }
   }
 
-  // ============================================
-  // MÉTODOS DE VALIDAÇÃO
-  // ============================================
-
   /**
    * Valida que débitos = créditos (partidas dobradas)
    */
@@ -405,16 +406,11 @@ export class JournalService {
   /**
    * Valida que todas as contas existem e estão ativas
    */
-  private async validateAccounts(
-    entries: CreateEntryDto[],
-    queryRunner: any,
-  ): Promise<void> {
+  private async validateAccounts(entries: CreateEntryDto[]): Promise<void> {
     const accountIds = [...new Set(entries.map((e) => e.accountId))];
 
     for (const accountId of accountIds) {
-      const account = await queryRunner.manager.findOne('Account', {
-        where: { id: accountId },
-      });
+      const account = await this.accountService.findById(accountId);
 
       if (!account) {
         throw new Error(`Conta ${accountId} não encontrada`);
@@ -429,15 +425,12 @@ export class JournalService {
   /**
    * Valida que todas as moedas existem
    */
-  private async validateCurrencies(
-    entries: CreateEntryDto[],
-    queryRunner: any,
-  ): Promise<void> {
+  private async validateCurrencies(entries: CreateEntryDto[]): Promise<void> {
     const currencyIds = [...new Set(entries.map((e) => e.currencyId))];
 
     for (const currencyId of currencyIds) {
-      const currency = await queryRunner.manager.findOne('Currency', {
-        where: { id: currencyId },
+      const currency = await this.currencyService.findByFilters({
+        id: currencyId,
       });
 
       if (!currency) {
@@ -450,21 +443,17 @@ export class JournalService {
     }
   }
 
-  // ============================================
-  // MÉTODOS DE GERAÇÃO
-  // ============================================
-
   /**
    * Gera número único para journal
    * Formato: JNL-{YYYYMMDD}-{SEQUENCE}
    */
-  private async generateJournalNumber(queryRunner: any): Promise<string> {
+  private async generateJournalNumber(): Promise<string> {
     const today = new Date();
     const dateStr = today.toISOString().slice(0, 10).replace(/-/g, '');
 
-    const lastJournal = await queryRunner.manager.findOne(Journal, {
+    const lastJournal = await this.journalRepository.findOne({
       where: {
-        journalNumber: `JNL-${dateStr}-%`,
+        journalNumber: Like(`JNL-${dateStr}-%`),
       },
       order: { journalNumber: 'DESC' },
     });
@@ -472,9 +461,8 @@ export class JournalService {
     let sequence = 1;
     if (lastJournal) {
       const parts = lastJournal.journalNumber.split('-');
-      sequence = parseInt(parts[2], 10) + 1;
+      sequence = parseInt(parts[parts.length - 1]) + 1;
     }
-
     return `JNL-${dateStr}-${String(sequence).padStart(6, '0')}`;
   }
 
@@ -966,7 +954,7 @@ export class JournalService {
   ): Promise<Journal> {
     const journal = Journal.create({
       ledgerId: options.ledgerId,
-      journalNumber: await this.generateJournalNumber(queryRunner),
+      journalNumber: await this.generateJournalNumber(),
       type: JournalType.PIX,
       description: 'Transferência PIX',
       source: 'PIX_SAME_INSTITUTION',

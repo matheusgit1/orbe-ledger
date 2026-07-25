@@ -13,6 +13,8 @@ import { IdempotencyService } from './services/idempotency.service';
 import { AccountsService } from './services/accounts.service';
 import { TransactionService } from './services/transaction.service';
 import { EntryService } from './services/entry.service';
+import { CurrencyService } from './services/currency.service';
+import { LimiteService } from './services/limite.service';
 
 @Module({
   imports: [OrmModule],
@@ -30,6 +32,8 @@ import { EntryService } from './services/entry.service';
     AccountsService,
     TransactionService,
     EntryService,
+    CurrencyService,
+    LimiteService,
   ],
   exports: [
     LedgerService,
@@ -45,6 +49,8 @@ import { EntryService } from './services/entry.service';
     AccountsService,
     TransactionService,
     EntryService,
+    CurrencyService,
+    LimiteService,
   ],
 })
 export class CoreModule {}
