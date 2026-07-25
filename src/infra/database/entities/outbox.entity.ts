@@ -1,4 +1,3 @@
-
 import {
   Entity,
   Column,
@@ -12,7 +11,6 @@ import {
 import { OutboxEventType, OutboxStatus } from '../common/enums/outbox.enum';
 import { Journal } from './journal.entity';
 import { Transaction } from './transaction.entity';
-
 
 @Entity('outbox')
 @Index(['status', 'nextRetry'])
@@ -113,7 +111,8 @@ export class Outbox {
   private calculateNextRetry(): void {
     // Exponential backoff: 1min, 5min, 15min, 1h, 3h
     const backoffTimes = [1, 5, 15, 60, 180];
-    const minutes = backoffTimes[Math.min(this.attempts - 1, backoffTimes.length - 1)] || 180;
+    const minutes =
+      backoffTimes[Math.min(this.attempts - 1, backoffTimes.length - 1)] || 180;
     this.nextRetry = new Date(Date.now() + minutes * 60 * 1000);
   }
 
@@ -126,5 +125,27 @@ export class Outbox {
     if (!this.payload) {
       throw new Error('Outbox must have a payload');
     }
+  }
+
+  static create(props: {
+    aggregate: string;
+    aggregateId: string;
+    eventType: OutboxEventType;
+    payload: Record<string, any>;
+    journalId?: string;
+    transactionId?: string;
+  }): Outbox {
+    const outbox = new Outbox();
+    outbox.aggregate = props.aggregate;
+    outbox.aggregateId = props.aggregateId;
+    outbox.eventType = props.eventType;
+    outbox.payload = props.payload;
+    outbox.status = OutboxStatus.PENDING;
+    outbox.attempts = 0;
+    outbox.journalId = props.journalId ?? null;
+    outbox.transactionId = props.transactionId ?? null;
+
+    outbox.validate();
+    return outbox;
   }
 }

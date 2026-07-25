@@ -10,11 +10,7 @@ import { BalanceService } from 'src/core/services/balance.service';
 import { Account } from 'src/infra/database/entities/account.entity';
 import { QueryRunner } from 'typeorm/browser';
 import { JournalService } from 'src/core/services/journal.service';
-import { Transaction } from 'src/infra/database/entities/transaction.entity';
-import {
-  TransactionStatus,
-  TransactionType,
-} from 'src/infra/database/common/enums/transaction.enum';
+import { TransactionType } from 'src/infra/database/common/enums/transaction.enum';
 import { LedgerService } from 'src/core/services/ledger.service';
 import { LedgerCode } from 'src/infra/database/common/enums/ledger.enum';
 import {
@@ -28,6 +24,7 @@ import {
   AuditEntity,
 } from 'src/infra/database/common/enums/audit.enum';
 import { TransactionService } from 'src/core/services/transaction.service';
+import { EntityType } from 'src/infra/database/common/enums/idempotency.status';
 
 @Injectable()
 export class PixService {
@@ -55,54 +52,68 @@ export class PixService {
   async transfer(body: PixRequestDto) {
     /**exemplo
      * {
-  "originAccountId": "6b4fff22-0642-42a0-9444-25d1836caa41",
-  "destinationAccountId": "256c3003-9aba-4f75-9b10-8ebb4eaea424",
-  "amount": 100,
-  "idempotencyKey": "5408f7b8-a21e-471f-ad48-dc6d88647b15",
-  "pixKey": "12345678901",
-  "description": "Transferência via PIX",
-  "metadata": {
-    "key": "pix-key"
-  }
-}
+        "originAccountId": "6b4fff22-0642-42a0-9444-25d1836caa41",
+        "destinationAccountId": "256c3003-9aba-4f75-9b10-8ebb4eaea424",
+        "amount": 100,
+        "idempotencyKey": "5408f7b8-a21e-471f-ad48-dc6d88647b15",
+        "pixKey": "12345678901",
+        "description": "Transferência via PIX",
+        "metadata": {
+          "key": "pix-key"
+        }
+      }
      */
     const { hash, queryRunner } = await this.getQueryRunner();
 
     try {
-      this.logger.log(`[${hash}] Iniciando PIX (mesma instituição)`);
-
-      this.logger.log(`[${hash}] Passo 1: Validando idempotência`);
-
       const idempotency = await this.idempotencyService.findByKey(
         body.idempotencyKey,
       );
+
       if (idempotency) {
         this.logger.log(
-          `[${hash}] Idempotência já processada: ${body.idempotencyKey}`,
+          `[${hash}] idepotency already processed: ${body.idempotencyKey}`,
         );
+
+        const transaction =
+          await this.transactionService.findTransactionByFilter({
+            correlationId: body.idempotencyKey,
+          });
+
+        if (!transaction) {
+          throw new Error('Transaction not found');
+        }
+
         return {
-          status: 'already_processed',
-          transactionId: idempotency.entityId || undefined,
+          status: transaction.status,
+          transactionId: transaction.id,
+          debitEntryId: transaction.journals
+            .map((j) => j.getDebitEntry().map((e) => e.id))
+            .join(','),
+          creditEntryId: transaction.journals
+            .map((j) => j.getCreditEntry().map((e) => e.id))
+            .join(','),
+          amount: transaction.amount,
+          payerAccount: transaction.originAccount.id,
+          receiverAccount: transaction.destinationAccount.id,
+          institutionType: 'SAME_INSTITUTION',
+          completedAt: transaction.completedAt,
           idempotency: true,
         };
       }
 
-      const payerAccount = await this.accountRepository.findById(
-        body.originAccountId,
-      );
-
-      if (!payerAccount) {
-        throw new Error(`Conta origem ${body.originAccountId} não encontrada`);
-      }
-
-      const receiverAccount = await this.accountRepository.findById(
-        body.destinationAccountId,
-      );
+      const [payerAccount, receiverAccount] = await Promise.all([
+        this.accountRepository.findById(body.originAccountId),
+        this.accountRepository.findById(body.destinationAccountId),
+      ]);
 
       if (!receiverAccount) {
         throw new Error(
           `Conta destino ${body.destinationAccountId} não encontrada`,
         );
+      }
+      if (!payerAccount) {
+        throw new Error(`Conta origem ${body.originAccountId} não encontrada`);
       }
 
       await this.accountRepository.lockAccountsByIds(queryRunner, [
@@ -118,7 +129,7 @@ export class PixService {
         body.pixKey,
       );
 
-      const transaction = Transaction.create({
+      const savedTransaction = await this.transactionService.createTransaction({
         type: TransactionType.PIX,
         amount: body.amount,
         currencyId: payerAccount.currencyId,
@@ -131,13 +142,15 @@ export class PixService {
           description: body.description,
           institutionType: 'SAME_INSTITUTION',
           startedAt: new Date().toISOString(),
+          data: body,
         },
       });
 
-      const savedTransaction = await queryRunner.manager.save(transaction);
       const ledger = await this.ledgerService.getLedgerByCode(LedgerCode.PIX);
 
       const journal = await this.journalService.registerJournal(
+        queryRunner,
+        hash,
         {
           ledgerId: ledger.id,
           type: JournalType.PIX,
@@ -167,8 +180,6 @@ export class PixService {
             },
           ],
         },
-        hash,
-        queryRunner,
       );
 
       await this.auditService.createAudit(
@@ -186,18 +197,26 @@ export class PixService {
         {
           transactionId: savedTransaction.id,
           status: savedTransaction.status,
-          debitJournalId: journal
+          debitEntryId: journal
             .getDebitEntry()
             .map((e) => e.id)
             .join(','),
-          creditJournalId: journal
+          creditEntryId: journal
             .getCreditEntry()
             .map((e) => e.id)
             .join(','),
         },
       );
 
-      await this.transactionService.complete(queryRunner, savedTransaction.id);
+      await this.transactionService.complete(queryRunner, savedTransaction);
+      await this.idempotencyService.create(queryRunner, {
+        key: body.idempotencyKey,
+        hash: hash,
+        data: { ...body },
+        ttl: 86400,
+        entityType: EntityType.TRANSACTION,
+        entityId: savedTransaction.id,
+      });
       await queryRunner.commitTransaction();
 
       this.logger.log(
@@ -207,11 +226,11 @@ export class PixService {
       return {
         status: 'completed',
         transactionId: savedTransaction.id,
-        debitJournalId: journal
+        debitEntryId: journal
           .getDebitEntry()
           .map((e) => e.id)
           .join(','),
-        creditJournalId: journal
+        creditEntryId: journal
           .getCreditEntry()
           .map((e) => e.id)
           .join(','),
@@ -237,16 +256,12 @@ export class PixService {
     amount: number,
     pixKey?: string,
   ) {
-    // 5.1 - Validações da conta origem
     this.validatePayerAccount(payerAccount);
 
-    // 5.2 - Validações da conta destino
     this.validateReceiverAccount(receiverAccount);
 
-    // 5.3 - Validações da transferência
     this.validateTransfer(payerAccount, receiverAccount, amount);
 
-    // 5.4 - Validação de saldo disponível
     const availableBalance = await this.balanceService.getAvailableBalance(
       queryRunner,
       payerAccount.id,
@@ -259,10 +274,8 @@ export class PixService {
       );
     }
 
-    // 5.5 - Validação de limites
     await this.validateLimits(payerAccount.id, amount, queryRunner);
 
-    // 5.6 - Validação de PIX Key (se fornecida)
     if (pixKey) {
       this.validatePixKey(pixKey, receiverAccount);
     }

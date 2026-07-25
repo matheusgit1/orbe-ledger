@@ -5,6 +5,7 @@ import { Transaction } from 'src/infra/database/entities/transaction.entity';
 import { Repository } from 'typeorm';
 import { QueryRunner } from 'typeorm/browser';
 import { TransactionType } from 'src/infra/database/common/enums/transaction.enum';
+import { EntityType } from 'src/infra/database/common/enums/idempotency.status';
 
 export interface CreateTransactionOptions {
   type: TransactionType;
@@ -57,14 +58,31 @@ export class TransactionService {
     return await this.transactionRepository.findOne({ where: { id } });
   }
 
-  async complete(queryRunner: QueryRunner, transactionId: string) {
-    const transaction = await queryRunner.manager.findOne(Transaction, {
-      where: { id: transactionId },
+  async findTransactionByFilter({
+    ...filters
+  }: {
+    correlationId?: string;
+    id?: string;
+  }) {
+    return await this.transactionRepository.findOne({
+      where: {
+        ...filters,
+      },
+      relations: {
+        journals: {
+          entries: true,
+        },
+        originAccount: true,
+        destinationAccount: true,
+      },
     });
+  }
+
+  async complete(queryRunner: QueryRunner, transaction: Transaction) {
     if (!transaction) {
       throw new Error('Transaction not found');
     }
-    transaction.status = TransactionStatus.COMPLETED;
+    transaction.complete();
     return await queryRunner.manager.save(transaction);
   }
 }

@@ -1,14 +1,7 @@
 // src/core/services/journal.service.ts
 import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import {
-  Repository,
-  DataSource,
-  In,
-  Between,
-  LessThan,
-  MoreThan,
-} from 'typeorm';
+import { Repository, DataSource, LessThan } from 'typeorm';
 import { Journal } from '../../infra/database/entities/journal.entity';
 import { Entry } from '../../infra/database/entities/entry.entity';
 import { BalanceSnapshot } from '../../infra/database/entities/balance-snapshot.entity';
@@ -25,10 +18,9 @@ import {
 import { BalanceSnapshotService } from './balance-snapshot.service';
 import { OutboxService } from './outbox.service';
 import { AuditService } from './audit.service';
-import { AccountsService } from './accounts.service';
 import { QueryRunner } from 'typeorm/browser';
 import { EntryService } from './entry.service';
-
+import { EntityType } from 'src/infra/database/common/enums/idempotency.status';
 export interface CreateEntryDto {
   accountId: string;
   side: EntrySide;
@@ -46,7 +38,7 @@ export interface CreateJournalOptions {
   description?: string;
   reference?: string;
   externalReference?: string;
-  correlationId?: string;
+  correlationId: string;
   causationId?: string;
   idempotencyKey?: string;
   source: string;
@@ -66,42 +58,30 @@ export class JournalService {
     @InjectRepository(Entry)
     private readonly entryRepository: Repository<Entry>,
     @InjectRepository(BalanceSnapshot)
-    private readonly balanceSnapshotRepository: Repository<BalanceSnapshot>,
     private readonly dataSource: DataSource,
     private readonly balanceSnapshotService: BalanceSnapshotService,
     private readonly outboxService: OutboxService,
     private readonly auditService: AuditService,
-    private readonly accountService: AccountsService,
     private readonly entryService: EntryService,
   ) {}
 
-  // ============================================
-  // MÉTODOS PRINCIPAIS
-  // ============================================
-
-  /**
-   * Cria um journal com partidas dobradas
-   * Garante que débitos = créditos e todas as validações
-   */
   async registerJournal(
-    dto: CreateJournalOptions,
-    traceId: string,
     queryRunner: QueryRunner,
+    hash: string,
+    dto: CreateJournalOptions,
   ): Promise<Journal> {
-    const qr = queryRunner;
-
     try {
-      this.logger.log(`[${traceId}] Criando journal tipo ${dto.type}`);
+      this.logger.log(`[${hash}] Criando journal tipo ${dto.type}`);
 
       this.validateDoubleEntry(dto.entries);
 
-      await this.validateAccounts(dto.entries, qr);
+      await this.validateAccounts(dto.entries, queryRunner);
 
-      await this.validateCurrencies(dto.entries, qr);
+      await this.validateCurrencies(dto.entries, queryRunner);
 
-      const journalNumber = await this.generateJournalNumber(qr);
+      const journalNumber = await this.generateJournalNumber(queryRunner);
 
-      const journal = await this.createJournal(queryRunner, {
+      const savedJournal = await this.createJournal(queryRunner, {
         ledgerId: dto.ledgerId,
         type: dto.type,
         status: dto.status,
@@ -117,8 +97,6 @@ export class JournalService {
         postedAt: dto.postedAt,
         entries: dto.entries,
       });
-
-      const savedJournal = await qr.manager.save(journal);
 
       const savedEntries: Entry[] = [];
       let sequence = 1;
@@ -144,9 +122,6 @@ export class JournalService {
         savedEntries.push(savedEntry);
       }
 
-      console.log('=== SAVED ENTRIES ===');
-      console.log(savedEntries);
-
       for (const entry of savedEntries) {
         await this.balanceSnapshotService.updateBalance(
           queryRunner,
@@ -161,14 +136,16 @@ export class JournalService {
 
       savedJournal.setStatus(JournalStatus.POSTED);
       await this.saveJournal(queryRunner, savedJournal);
-      await queryRunner.manager.save(Entry, savedEntries);
+      for (const entry of savedEntries) {
+        await this.entryService.saveEntry(queryRunner, entry);
+      }
 
       await this.auditService.createAudit(
         AuditEntity.JOURNAL,
         savedJournal.id,
         AuditAction.CREATE,
         dto.createdBy || 'SYSTEM',
-        traceId,
+        hash,
         {
           journalNumber,
           type: dto.type,
@@ -189,24 +166,20 @@ export class JournalService {
         },
       );
 
-      // 10. Criar eventos outbox
-      await this.createOutboxEvents(savedJournal, savedEntries, dto.type, qr);
+      await this.createOutboxEvents(savedJournal, savedEntries, queryRunner);
 
-      // Busca o journal completo para retorno
-      const result = await this.findByIdWithQueryRunner(qr, savedJournal.id);
-      this.logger.log(
-        `[${traceId}] Journal ${journalNumber} criado com sucesso`,
+      const result = await this.findByIdWithQueryRunner(
+        queryRunner,
+        savedJournal.id,
       );
+      this.logger.log(`[${hash}] Journal ${journalNumber} criado com sucesso`);
       return result;
     } catch (error: any) {
-      this.logger.error(`[${traceId}] Erro ao criar journal: ${error.message}`);
+      this.logger.error(`[${hash}] Erro ao criar journal: ${error.message}`);
       throw new BadRequestException(`Erro ao criar journal: ${error.message}`);
     }
   }
 
-  /**
-   * Cria um journal de reversão (inverte todas as entries)
-   */
   async createReversalJournal(
     originalJournalId: string,
     reason: string,
@@ -226,7 +199,6 @@ export class JournalService {
         `[${traceId}] Criando journal de reversão para ${originalJournalId}`,
       );
 
-      // Busca o journal original
       const originalJournal = await qr.manager.findOne(Journal, {
         where: { id: originalJournalId },
         relations: { entries: true },
@@ -242,7 +214,6 @@ export class JournalService {
         );
       }
 
-      // Cria entries de reversão (inverte os lados)
       const reversalEntries: CreateEntryDto[] = originalJournal.entries.map(
         (entry) => ({
           accountId: entry.accountId,
@@ -259,7 +230,6 @@ export class JournalService {
         }),
       );
 
-      // Cria o journal de reversão
       const reversalJournal = await this.createJournal(qr, {
         ledgerId: originalJournal.ledgerId,
         type: JournalType.REVERSAL,
@@ -280,7 +250,6 @@ export class JournalService {
         },
       });
 
-      // Marca o journal original como revertido
       originalJournal.status = JournalStatus.REVERSED;
       await qr.manager.save(originalJournal);
 
@@ -509,24 +478,19 @@ export class JournalService {
     return `JNL-${dateStr}-${String(sequence).padStart(6, '0')}`;
   }
 
-  // ============================================
-  // MÉTODOS DE EVENTOS
-  // ============================================
-
   /**
    * Cria eventos outbox para o journal
    */
   private async createOutboxEvents(
     journal: Journal,
     entries: Entry[],
-    journalType: JournalType,
     queryRunner: any,
   ): Promise<void> {
-    const eventType = this.mapJournalTypeToEventType(journalType);
+    const eventType = this.mapJournalTypeToEventType(journal.type);
     if (!eventType) return;
 
     await this.outboxService.createOutbox(
-      'Journal',
+      EntityType.JOURNAL,
       journal.id,
       eventType,
       {
@@ -578,13 +542,6 @@ export class JournalService {
     return mapping[journalType] || OutboxEventType.JOURNAL_CREATED;
   }
 
-  // ============================================
-  // MÉTODOS DE CONSULTA
-  // ============================================
-
-  /**
-   * Busca journal por ID com entries
-   */
   async findById(id: string): Promise<Journal> {
     const journal = await this.journalRepository.findOne({
       where: { id },

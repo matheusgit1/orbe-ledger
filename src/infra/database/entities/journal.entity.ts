@@ -21,7 +21,7 @@ import { Outbox } from './outbox.entity';
 import { Transaction } from './transaction.entity';
 
 @Entity('journals')
-@Index(['ledgerId', 'journalNumber'], { unique: true })
+@Index(['journalNumber'])
 @Index(['correlationId'])
 @Index(['causationId'])
 @Index(['idempotencyKey'], {
@@ -39,7 +39,7 @@ export class Journal {
   @Column({ type: 'uuid', name: 'ledger_id' })
   ledgerId: string;
 
-  @Column({ type: 'varchar', length: 50, name: 'journal_number', unique: true })
+  @Column({ type: 'varchar', length: 50, name: 'journal_number' })
   journalNumber: string;
 
   @Column({

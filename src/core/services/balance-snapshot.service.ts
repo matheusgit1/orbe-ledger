@@ -33,38 +33,23 @@ export class BalanceSnapshotService {
 
     const repository = queryRunner.manager;
 
-    // Get current snapshot
     let snapshot = await repository.findOne(BalanceSnapshot, {
       where: { accountId },
       order: { version: 'DESC' },
+      lock: { mode: 'pessimistic_read' },
     });
 
-    // Create initial snapshot if doesn't exist
     if (!snapshot) {
       snapshot = BalanceSnapshot.createInitial(accountId, currencyId);
     }
+    console.log('snapshot antes: ', snapshot);
 
-    // Update balances directly without creating a temporary entry
-    if (side === EntrySide.DEBIT) {
-      snapshot.book -= amount;
-      snapshot.available -= amount;
-    } else {
-      snapshot.book += amount;
-      snapshot.available += amount;
-    }
+    snapshot.applyEntry(amount, side, entryId, journalId);
 
-    // Update references if provided
-    if (entryId) {
-      snapshot.lastEntryId = entryId;
-    }
-    if (journalId) {
-      snapshot.lastJournalId = journalId;
-    }
-
+    console.log('snapshot depois: ', snapshot);
     snapshot.validate();
 
     const savedSnapshot = await repository.save(snapshot);
-    // this.logger.log(`Balance updated for account ${accountId}: available=${snapshot.available}, book=${snapshot.book}`);
 
     return savedSnapshot;
   }

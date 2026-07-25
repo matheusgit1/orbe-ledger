@@ -2,7 +2,10 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Outbox } from '../../infra/database/entities/outbox.entity';
-import { OutboxEventType, OutboxStatus } from '../../infra/database/common/enums/outbox.enum';
+import {
+  OutboxEventType,
+  OutboxStatus,
+} from '../../infra/database/common/enums/outbox.enum';
 
 @Injectable()
 export class OutboxService {
@@ -11,7 +14,7 @@ export class OutboxService {
   constructor(
     @InjectRepository(Outbox)
     private readonly outboxRepository: Repository<Outbox>,
-  ) { }
+  ) {}
 
   /**
    * Creates an outbox event for async publication
@@ -23,19 +26,20 @@ export class OutboxService {
     payload: Record<string, any>,
     queryRunner?: any,
   ): Promise<Outbox> {
-    this.logger.log(`Creating outbox event: ${eventType} for ${aggregate}:${aggregateId}`);
+    this.logger.log(
+      `Creating outbox event: ${eventType} for ${aggregate}:${aggregateId}`,
+    );
 
-    const outbox = new Outbox();
-    outbox.aggregate = aggregate;
-    outbox.aggregateId = aggregateId;
-    outbox.eventType = eventType;
-    outbox.payload = payload;
-    outbox.status = OutboxStatus.PENDING;
-    outbox.attempts = 0;
+    const outbox = Outbox.create({
+      aggregate,
+      aggregateId,
+      eventType,
+      payload,
+    });
 
-    outbox.validate();
-
-    const repository = queryRunner ? queryRunner.manager : this.outboxRepository;
+    const repository = queryRunner
+      ? queryRunner.manager
+      : this.outboxRepository;
     const savedOutbox = await repository.save(outbox);
 
     this.logger.log(`Outbox event created: ${savedOutbox.id}`);

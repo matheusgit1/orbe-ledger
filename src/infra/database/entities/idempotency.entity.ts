@@ -6,11 +6,13 @@ import {
   UpdateDateColumn,
   Index,
 } from 'typeorm';
+import { IdempotencyStatus } from '../common/enums/idempotency.status';
 
 @Entity('idempotency')
 @Index(['key'], { unique: true })
 @Index(['expiresAt'])
 export class Idempotency {
+  protected constructor() {}
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
@@ -23,8 +25,8 @@ export class Idempotency {
   @Column({ type: 'jsonb' })
   response: Record<string, any>;
 
-  @Column({ type: 'varchar', length: 50 })
-  status: string; // COMPLETED, PROCESSING, FAILED
+  @Column({ type: 'varchar', length: 50, enum: IdempotencyStatus })
+  status: IdempotencyStatus; // COMPLETED, PROCESSING, FAILED
 
   @Column({ type: 'varchar', length: 50, nullable: true, name: 'entity_type' })
   entityType: string; // TRANSACTION, JOURNAL, etc.
@@ -50,15 +52,15 @@ export class Idempotency {
   }
 
   isCompleted(): boolean {
-    return this.status === 'COMPLETED';
+    return this.status === IdempotencyStatus.COMPLETED;
   }
 
   isProcessing(): boolean {
-    return this.status === 'PROCESSING';
+    return this.status === IdempotencyStatus.PROCESSING;
   }
 
   isFailed(): boolean {
-    return this.status === 'FAILED';
+    return this.status === IdempotencyStatus.FAILED;
   }
 
   canRetry(): boolean {
@@ -66,16 +68,16 @@ export class Idempotency {
   }
 
   markAsCompleted(response: Record<string, any>): void {
-    this.status = 'COMPLETED';
+    this.status = IdempotencyStatus.COMPLETED;
     this.response = response;
   }
 
   markAsProcessing(): void {
-    this.status = 'PROCESSING';
+    this.status = IdempotencyStatus.PROCESSING;
   }
 
   markAsFailed(error: string): void {
-    this.status = 'FAILED';
+    this.status = IdempotencyStatus.FAILED;
     this.metadata = {
       ...this.metadata,
       error,
@@ -103,25 +105,32 @@ export class Idempotency {
   }
 
   // Método para criar chave de idempotência
+
+  // Método para criar registro de idempotência com entity
   static create(
     key: string,
-    requestHash: string,
-    response: Record<string, any>,
-    expiresInSeconds: number = 86400 // 24 horas
+    hash: string,
+    data: Record<string, any>,
+    ttl: number,
+    entityType: string,
+    entityId: string,
   ): Idempotency {
     const idempotency = new Idempotency();
     idempotency.key = key;
-    idempotency.requestHash = requestHash;
-    idempotency.response = response;
-    idempotency.status = 'PROCESSING';
-    idempotency.expiresAt = new Date(Date.now() + expiresInSeconds * 1000);
+    idempotency.requestHash = hash;
+    idempotency.response = data;
+    idempotency.status = IdempotencyStatus.COMPLETED;
+    idempotency.metadata = data;
+    idempotency.expiresAt = new Date(Date.now() + ttl * 1000);
+    idempotency.entityType = entityType;
+    idempotency.entityId = entityId;
     return idempotency;
   }
 
   // Método para verificar duplicidade
   static isDuplicate(
     existing: Idempotency | null,
-    requestHash: string
+    requestHash: string,
   ): boolean {
     if (!existing) return false;
     return existing.requestHash === requestHash && !existing.isExpired();

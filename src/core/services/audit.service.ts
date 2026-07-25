@@ -2,7 +2,10 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Audit } from '../../infra/database/entities/audit.entity';
-import { AuditEntity, AuditAction } from '../../infra/database/common/enums/audit.enum';
+import {
+  AuditEntity,
+  AuditAction,
+} from '../../infra/database/common/enums/audit.enum';
 
 @Injectable()
 export class AuditService {
@@ -11,7 +14,7 @@ export class AuditService {
   constructor(
     @InjectRepository(Audit)
     private readonly auditRepository: Repository<Audit>,
-  ) { }
+  ) {}
 
   /**
    * Creates an audit log entry
@@ -26,19 +29,29 @@ export class AuditService {
     after?: any,
     metadata?: any,
   ): Promise<Audit> {
-    // this.logger.log(`Creating audit: ${action} on ${aggregate}:${aggregateId}`);
+    this.logger.log(`Creating audit: ${action} on ${aggregate}:${aggregateId}`);
 
-    const audit = Audit.create(aggregate, aggregateId, action, userId, before, after, metadata);
+    const audit = Audit.create(
+      aggregate,
+      aggregateId,
+      action,
+      userId,
+      before,
+      after,
+      metadata,
+    );
     if (traceId !== undefined) audit.traceId = traceId;
 
-    const repository = this.auditRepository;
-    const savedAudit = await repository.save(audit);
+    const savedAudit = await this.auditRepository.save(audit);
 
-    // this.logger.log(`Audit created: ${savedAudit.id}`);
+    this.logger.log(`Audit created: ${savedAudit.id}`);
     return savedAudit;
   }
 
-  async findByAggregate(aggregate: AuditEntity, aggregateId: string): Promise<Audit[]> {
+  async findByAggregate(
+    aggregate: AuditEntity,
+    aggregateId: string,
+  ): Promise<Audit[]> {
     return this.auditRepository.find({
       where: { aggregate, aggregateId },
       order: { createdAt: 'DESC' },

@@ -29,7 +29,7 @@ export class EntryService {
     return Entry.create(options);
   }
 
-  async saveEntry(queryRunner: QueryRunner, entry: Entry) {
+  async saveEntry(queryRunner: QueryRunner, entry: Entry): Promise<Entry> {
     return await queryRunner.manager.save(Entry, entry);
   }
 }

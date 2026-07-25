@@ -111,6 +111,34 @@ export class BalanceSnapshot {
     this.version += 1;
   }
 
+  applyEntry(
+    amount: number,
+    side: EntrySide,
+    entryId?: string,
+    journalId?: string,
+  ): void {
+    const currentBook =
+      typeof this.book === 'string' ? parseFloat(this.book) : this.book;
+    const currentAvailable =
+      typeof this.available === 'string'
+        ? parseFloat(this.available)
+        : this.available;
+
+    if (side === EntrySide.DEBIT) {
+      this.book = currentBook - amount;
+      this.available = currentAvailable - amount;
+    } else {
+      this.book = currentBook + amount;
+      this.available = currentAvailable + amount;
+    }
+    if (entryId) {
+      this.lastEntryId = entryId;
+    }
+    if (journalId) {
+      this.lastJournalId = journalId;
+    }
+  }
+
   // Validação de domínio
   validate(): void {
     if (this.available < 0) {
