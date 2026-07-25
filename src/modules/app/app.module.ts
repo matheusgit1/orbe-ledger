@@ -7,11 +7,9 @@ import { LoggingInterceptor } from '../../interceptors/logging.interceptor';
 import { ResponseInterceptor } from '../../interceptors/response.interceptor';
 import { TracingMiddleware } from '../../middlewares/tracing.middleware';
 import { EventEmitterModule } from '@nestjs/event-emitter';
-import { MovementsModule } from '../transfer/movments.module';
 import { HealthModule } from '../health/health.module';
 import { CoreModule } from 'src/core/core.module';
 import { PixModule } from '../pix/pix.module';
-
 
 @Module({
   imports: [
@@ -20,7 +18,7 @@ import { PixModule } from '../pix/pix.module';
     OrmModule,
     HealthModule,
     // MovementsModule,
-    PixModule
+    PixModule,
   ],
   controllers: [],
   providers: [
@@ -34,4 +32,3 @@ export class AppModule implements NestModule {
     consumer.apply(TracingMiddleware).forRoutes('*');
   }
 }
-

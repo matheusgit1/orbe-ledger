@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { BalanceSnapshot } from '../../infra/database/entities/balance-snapshot.entity';
 import { EntrySide } from '../../infra/database/common/enums/journal.enum';
 import { Entry } from '../../infra/database/entities/entry.entity';
+import { QueryRunner } from 'typeorm/browser';
 
 @Injectable()
 export class BalanceSnapshotService {
@@ -12,23 +13,25 @@ export class BalanceSnapshotService {
   constructor(
     @InjectRepository(BalanceSnapshot)
     private readonly balanceSnapshotRepository: Repository<BalanceSnapshot>,
-  ) { }
+  ) {}
 
   /**
    * Updates balance for an account after an entry
    */
   async updateBalance(
+    queryRunner: QueryRunner,
     accountId: string,
     amount: number,
     side: EntrySide,
     currencyId: string,
-    queryRunner?: any,
     entryId?: string,
     journalId?: string,
   ): Promise<BalanceSnapshot> {
-    this.logger.log(`Updating balance for account ${accountId}, amount: ${amount}, side: ${side}`);
+    this.logger.log(
+      `Updating balance for account ${accountId}, amount: ${amount}, side: ${side}`,
+    );
 
-    const repository = queryRunner ? queryRunner.manager : this.balanceSnapshotRepository;
+    const repository = queryRunner.manager;
 
     // Get current snapshot
     let snapshot = await repository.findOne(BalanceSnapshot, {
@@ -39,9 +42,6 @@ export class BalanceSnapshotService {
     // Create initial snapshot if doesn't exist
     if (!snapshot) {
       snapshot = BalanceSnapshot.createInitial(accountId, currencyId);
-    } else {
-      // Clone for versioning
-      snapshot = snapshot.clone();
     }
 
     // Update balances directly without creating a temporary entry

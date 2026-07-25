@@ -10,11 +10,8 @@ export class AccountsRepository {
     private readonly repository: Repository<Account>,
   ) {}
 
-  async findById(
-    queryRunner: QueryRunner,
-    id: string,
-  ): Promise<Account | null> {
-    return await queryRunner.manager.findOne(Account, { where: { id } });
+  async findById(id: string): Promise<Account | null> {
+    return await this.repository.findOne({ where: { id } });
   }
 
   async findByCode(
@@ -28,9 +25,9 @@ export class AccountsRepository {
     queryRunner: QueryRunner,
     ids: string[],
   ): Promise<Account[] | null> {
-    return await queryRunner.manager.find(Account, { 
+    return await queryRunner.manager.find(Account, {
       where: { id: In(ids) },
-      lock: { mode: 'pessimistic_read' }
+      lock: { mode: 'pessimistic_read' },
     });
   }
 }

@@ -27,6 +27,8 @@ import { Saga } from './saga.entity';
 @Index(['destinationAccountId', 'status'])
 @Index(['workflowId'])
 export class Transaction {
+  protected constructor() {}
+
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
@@ -56,13 +58,13 @@ export class Transaction {
   destinationAccountId: string;
 
   @Column({ type: 'varchar', nullable: true, name: 'correlation_id' })
-  correlationId: string;
+  correlationId?: string;
 
   @Column({ type: 'varchar', length: 100, nullable: true, name: 'external_id' })
   externalId?: string;
 
   @Column({ type: 'uuid', nullable: true, name: 'workflow_id' })
-  workflowId: string;
+  workflowId?: string;
 
   @Column({ type: 'jsonb', nullable: true })
   metadata: Record<string, any>;
@@ -75,7 +77,7 @@ export class Transaction {
   startedAt: Date;
 
   @Column({ type: 'timestamp', nullable: true, name: 'completed_at' })
-  completedAt: Date;
+  completedAt?: Date;
 
   @Column({ type: 'int', default: 0, name: 'retry_count' })
   retryCount: number;
@@ -170,5 +172,35 @@ export class Transaction {
     if (this.originAccountId === this.destinationAccountId) {
       throw new Error('Origin and destination accounts must be different');
     }
+  }
+
+  static create(props: {
+    type: TransactionType;
+    amount: number;
+    currencyId: string;
+    originAccountId: string;
+    destinationAccountId: string;
+    correlationId?: string;
+    externalId?: string;
+    workflowId?: string;
+    metadata?: Record<string, any>;
+  }): Transaction {
+    const transaction = new Transaction();
+    transaction.type = props.type;
+    transaction.status = TransactionStatus.INITIATED;
+    transaction.amount = props.amount;
+    transaction.currencyId = props.currencyId;
+    transaction.originAccountId = props.originAccountId;
+    transaction.destinationAccountId = props.destinationAccountId;
+    transaction.correlationId = props.correlationId || undefined;
+    transaction.externalId = props.externalId;
+    transaction.workflowId = props.workflowId || undefined;
+    transaction.metadata = props.metadata || {};
+    transaction.completedAt = undefined;
+    transaction.retryCount = 0;
+    transaction.errorDetails = undefined;
+
+    transaction.validate();
+    return transaction;
   }
 }

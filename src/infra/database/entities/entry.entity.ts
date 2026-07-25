@@ -15,7 +15,6 @@ import { Account } from './account.entity';
 import { Currency } from './currency.entity';
 import { Hold } from './hold.entity';
 
-
 @Entity('entries')
 @Index(['journalId', 'sequence'], { unique: true })
 @Index(['accountId', 'createdAt'])
@@ -43,10 +42,22 @@ export class Entry {
   @Column({ type: 'uuid', name: 'currency_id' })
   currencyId: string;
 
-  @Column({ type: 'decimal', precision: 10, scale: 6, default: 1, name: 'exchange_rate' })
+  @Column({
+    type: 'decimal',
+    precision: 10,
+    scale: 6,
+    default: 1,
+    name: 'exchange_rate',
+  })
   exchangeRate: number;
 
-  @Column({ type: 'decimal', precision: 15, scale: 2, nullable: true, name: 'amount_original_currency' })
+  @Column({
+    type: 'decimal',
+    precision: 15,
+    scale: 2,
+    nullable: true,
+    name: 'amount_original_currency',
+  })
   amountOriginalCurrency: number;
 
   @Column({ type: 'text', nullable: true })
@@ -56,7 +67,7 @@ export class Entry {
   sequence: number;
 
   @Column({ type: 'uuid', nullable: true, name: 'hold_id' })
-  holdId: string | null;
+  holdId?: string | null;
 
   @Column({ type: 'jsonb', nullable: true })
   metadata?: Record<string, any>;
@@ -101,11 +112,47 @@ export class Entry {
   // Validação de domínio
   validate(): void {
     if (this.amount <= 0) {
-      throw new Error(`Entry amount must be greater than 0, received ${this.amount}`);
+      throw new Error(
+        `Entry amount must be greater than 0, received ${this.amount}`,
+      );
     }
 
     if (this.exchangeRate <= 0) {
-      throw new Error(`Exchange rate must be greater than 0, received ${this.exchangeRate}`);
+      throw new Error(
+        `Exchange rate must be greater than 0, received ${this.exchangeRate}`,
+      );
     }
+  }
+
+  static create(props: {
+    journalId: string;
+    accountId: string;
+    side: EntrySide;
+    amount: number;
+    currencyId: string;
+    exchangeRate?: number;
+    amountOriginalCurrency?: number;
+    description?: string;
+    sequence: number;
+    holdId?: string;
+    metadata?: Record<string, any>;
+  }): Entry {
+    const entry = new Entry();
+    entry.journalId = props.journalId;
+    entry.accountId = props.accountId;
+    entry.side = props.side;
+    entry.amount = props.amount;
+    entry.currencyId = props.currencyId;
+    entry.exchangeRate = props.exchangeRate || 1;
+    if (props.amountOriginalCurrency !== undefined) {
+      entry.amountOriginalCurrency = props.amountOriginalCurrency;
+    }
+    entry.description = props.description;
+    entry.sequence = props.sequence;
+    entry.holdId = props.holdId;
+    entry.metadata = props.metadata;
+
+    entry.validate();
+    return entry;
   }
 }

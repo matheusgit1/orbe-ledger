@@ -27,6 +27,7 @@ import { OutboxService } from './outbox.service';
 import { AuditService } from './audit.service';
 import { AccountsService } from './accounts.service';
 import { QueryRunner } from 'typeorm/browser';
+import { EntryService } from './entry.service';
 
 export interface CreateEntryDto {
   accountId: string;
@@ -38,9 +39,10 @@ export interface CreateEntryDto {
   metadata?: Record<string, any>;
 }
 
-export interface CreateJournalDto {
+export interface CreateJournalOptions {
   ledgerId: string;
   type: JournalType;
+  status: JournalStatus;
   description?: string;
   reference?: string;
   externalReference?: string;
@@ -70,6 +72,7 @@ export class JournalService {
     private readonly outboxService: OutboxService,
     private readonly auditService: AuditService,
     private readonly accountService: AccountsService,
+    private readonly entryService: EntryService,
   ) {}
 
   // ============================================
@@ -80,88 +83,86 @@ export class JournalService {
    * Cria um journal com partidas dobradas
    * Garante que débitos = créditos e todas as validações
    */
-  async createJournal(
-    dto: CreateJournalDto,
+  async registerJournal(
+    dto: CreateJournalOptions,
     traceId: string,
     queryRunner: QueryRunner,
   ): Promise<Journal> {
-    const qr = queryRunner 
+    const qr = queryRunner;
 
     try {
       this.logger.log(`[${traceId}] Criando journal tipo ${dto.type}`);
 
-      // 1. Validar partidas dobradas
       this.validateDoubleEntry(dto.entries);
 
-      // 2. Validar contas
       await this.validateAccounts(dto.entries, qr);
 
-      // 3. Validar moedas
       await this.validateCurrencies(dto.entries, qr);
 
-      // 4. Gerar número do journal
       const journalNumber = await this.generateJournalNumber(qr);
 
-      // 5. Criar journal
-      const journal = new Journal();
-      journal.ledgerId = dto.ledgerId;
-      journal.journalNumber = journalNumber;
-      journal.type = dto.type;
-      journal.status = JournalStatus.PENDING;
-      journal.description = dto.description || '';
-      journal.reference = dto.reference || '';
-      journal.externalReference = dto.externalReference || '';
-      journal.correlationId = dto.correlationId || '';
-      journal.causationId = dto.causationId || '';
-      journal.idempotencyKey = dto.idempotencyKey || '';
-      journal.source = dto.source;
-      journal.createdBy = dto.createdBy || 'SYSTEM';
-      journal.metadata = dto.metadata;
-      journal.postedAt = dto.postedAt;
+      const journal = await this.createJournal(queryRunner, {
+        ledgerId: dto.ledgerId,
+        type: dto.type,
+        status: dto.status,
+        description: dto.description || '',
+        reference: dto.reference || '',
+        externalReference: dto.externalReference || '',
+        correlationId: dto.correlationId || '',
+        causationId: dto.causationId || '',
+        idempotencyKey: dto.idempotencyKey || '',
+        source: dto.source,
+        createdBy: dto.createdBy || 'SYSTEM',
+        metadata: dto.metadata,
+        postedAt: dto.postedAt,
+        entries: dto.entries,
+      });
 
       const savedJournal = await qr.manager.save(journal);
 
-      // 6. Criar entries com sequência
       const savedEntries: Entry[] = [];
       let sequence = 1;
-
+      console.log('=== DTO ENTRIES ===');
+      console.log(dto.entries);
       for (const entryDto of dto.entries) {
-        const entry = new Entry();
-        entry.journalId = savedJournal.id;
-        entry.accountId = entryDto.accountId;
-        entry.side = entryDto.side;
-        entry.amount = entryDto.amount;
-        entry.currencyId = entryDto.currencyId;
-        entry.exchangeRate = 1;
-        entry.description = entryDto.description;
-        entry.sequence = sequence++;
-        entry.holdId = entryDto.holdId || null;
-        entry.metadata = entryDto.metadata;
-
-        entry.validate();
-        const savedEntry = await qr.manager.save(entry);
+        const entry = this.entryService.createEntry({
+          journalId: savedJournal.id,
+          accountId: entryDto.accountId,
+          side: entryDto.side,
+          amount: entryDto.amount,
+          currencyId: entryDto.currencyId,
+          exchangeRate: 1,
+          description: entryDto.description || '',
+          sequence: sequence++,
+          holdId: entryDto.holdId,
+          metadata: entryDto.metadata,
+        });
+        const savedEntry = await this.entryService.saveEntry(
+          queryRunner,
+          entry,
+        );
         savedEntries.push(savedEntry);
       }
 
-      // 7. Atualizar snapshots de saldo
+      console.log('=== SAVED ENTRIES ===');
+      console.log(savedEntries);
+
       for (const entry of savedEntries) {
         await this.balanceSnapshotService.updateBalance(
+          queryRunner,
           entry.accountId,
           entry.amount,
           entry.side,
           entry.currencyId,
-          qr,
           entry.id,
           savedJournal.id,
         );
       }
 
-      // 8. Marcar journal como POSTADO
-      savedJournal.status = JournalStatus.POSTED;
-      savedJournal.postedAt = new Date();
-      await qr.manager.save(savedJournal);
+      savedJournal.setStatus(JournalStatus.POSTED);
+      await this.saveJournal(queryRunner, savedJournal);
+      await queryRunner.manager.save(Entry, savedEntries);
 
-      // 9. Criar audit log
       await this.auditService.createAudit(
         AuditEntity.JOURNAL,
         savedJournal.id,
@@ -200,7 +201,7 @@ export class JournalService {
     } catch (error: any) {
       this.logger.error(`[${traceId}] Erro ao criar journal: ${error.message}`);
       throw new BadRequestException(`Erro ao criar journal: ${error.message}`);
-    } 
+    }
   }
 
   /**
@@ -259,28 +260,25 @@ export class JournalService {
       );
 
       // Cria o journal de reversão
-      const reversalJournal = await this.createJournal(
-        {
-          ledgerId: originalJournal.ledgerId,
-          type: JournalType.REVERSAL,
-          description: `Reversão do journal ${originalJournal.journalNumber}: ${reason}`,
-          reference: originalJournal.reference,
-          externalReference: originalJournal.externalReference,
-          correlationId: originalJournal.id,
-          causationId: originalJournal.causationId,
-          source: 'REVERSAL',
-          createdBy: 'SYSTEM',
-          entries: reversalEntries,
-          metadata: {
-            originalJournalId,
-            originalJournalNumber: originalJournal.journalNumber,
-            reversalReason: reason,
-            isFullReversal: true,
-          },
+      const reversalJournal = await this.createJournal(qr, {
+        ledgerId: originalJournal.ledgerId,
+        type: JournalType.REVERSAL,
+        status: JournalStatus.PENDING,
+        description: `Reversão do journal ${originalJournal.journalNumber}: ${reason}`,
+        reference: originalJournal.reference,
+        externalReference: originalJournal.externalReference,
+        correlationId: originalJournal.id,
+        causationId: originalJournal.causationId,
+        source: 'REVERSAL',
+        createdBy: 'SYSTEM',
+        entries: reversalEntries,
+        metadata: {
+          originalJournalId,
+          originalJournalNumber: originalJournal.journalNumber,
+          reversalReason: reason,
+          isFullReversal: true,
         },
-        traceId,
-        qr,
-      );
+      });
 
       // Marca o journal original como revertido
       originalJournal.status = JournalStatus.REVERSED;
@@ -362,26 +360,23 @@ export class JournalService {
         }),
       );
 
-      const reversalJournal = await this.createJournal(
-        {
-          ledgerId: originalJournal.ledgerId,
-          type: JournalType.REVERSAL,
-          description: `Reversão parcial do journal ${originalJournal.journalNumber}: ${reason}`,
-          correlationId: originalJournal.id,
-          source: 'REVERSAL',
-          createdBy: 'SYSTEM',
-          entries: reversalEntries,
-          metadata: {
-            originalJournalId,
-            originalJournalNumber: originalJournal.journalNumber,
-            reversalReason: reason,
-            isPartialReversal: true,
-            reversedEntries: entriesToReverse.map((e) => e.entryId),
-          },
+      const reversalJournal = await this.createJournal(qr, {
+        ledgerId: originalJournal.ledgerId,
+        type: JournalType.REVERSAL,
+        status: JournalStatus.PENDING,
+        description: `Reversão parcial do journal ${originalJournal.journalNumber}: ${reason}`,
+        correlationId: originalJournal.id,
+        source: 'REVERSAL',
+        createdBy: 'SYSTEM',
+        entries: reversalEntries,
+        metadata: {
+          originalJournalId,
+          originalJournalNumber: originalJournal.journalNumber,
+          reversalReason: reason,
+          isPartialReversal: true,
+          reversedEntries: entriesToReverse.map((e) => e.entryId),
         },
-        traceId,
-        qr,
-      );
+      });
 
       if (shouldManageTransaction) {
         await qr.commitTransaction();
@@ -608,7 +603,10 @@ export class JournalService {
     return journal;
   }
 
-  async findByIdWithQueryRunner(queryRunner: QueryRunner, id: string): Promise<Journal> {
+  async findByIdWithQueryRunner(
+    queryRunner: QueryRunner,
+    id: string,
+  ): Promise<Journal> {
     const journal = await queryRunner.manager.findOne(Journal, {
       where: { id },
       relations: {
@@ -1003,5 +1001,30 @@ export class JournalService {
       },
       relations: { entries: true },
     });
+  }
+
+  async createJournal(
+    queryRunner: QueryRunner,
+    options: CreateJournalOptions,
+  ): Promise<Journal> {
+    const journal = Journal.create({
+      ledgerId: options.ledgerId,
+      journalNumber: await this.generateJournalNumber(queryRunner),
+      type: JournalType.PIX,
+      description: 'Transferência PIX',
+      source: 'PIX_SAME_INSTITUTION',
+      createdBy: 'SYSTEM',
+      correlationId: options.correlationId,
+      causationId: options.causationId,
+    });
+    const saved = await this.saveJournal(queryRunner, journal);
+    return saved;
+  }
+
+  async saveJournal(
+    queryRunner: QueryRunner,
+    journal: Journal,
+  ): Promise<Journal> {
+    return await queryRunner.manager.save(Journal, journal);
   }
 }

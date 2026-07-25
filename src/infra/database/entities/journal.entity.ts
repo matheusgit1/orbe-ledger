@@ -31,6 +31,8 @@ import { Transaction } from './transaction.entity';
 @Index(['status', 'postedAt'])
 @Index(['reference'])
 export class Journal {
+  protected constructor() {}
+
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
@@ -54,10 +56,10 @@ export class Journal {
   type: JournalType;
 
   @Column({ type: 'text', nullable: true })
-  description: string;
+  description?: string;
 
   @Column({ type: 'varchar', length: 100, nullable: true })
-  reference: string;
+  reference?: string;
 
   @Column({
     type: 'varchar',
@@ -65,7 +67,7 @@ export class Journal {
     nullable: true,
     name: 'external_reference',
   })
-  externalReference: string;
+  externalReference?: string;
 
   @Column({
     type: 'uuid',
@@ -73,7 +75,7 @@ export class Journal {
     nullable: true,
     name: 'correlation_id',
   })
-  correlationId: string;
+  correlationId?: string;
 
   @Column({
     type: 'uuid',
@@ -81,10 +83,15 @@ export class Journal {
     nullable: true,
     name: 'causation_id',
   })
-  causationId: string;
+  causationId?: string;
 
-  @Column({ type: 'varchar', length: 100, nullable: true, name: 'idempotency_key' })
-  idempotencyKey: string;
+  @Column({
+    type: 'varchar',
+    length: 100,
+    nullable: true,
+    name: 'idempotency_key',
+  })
+  idempotencyKey?: string;
 
   @Column({ type: 'varchar', length: 50, name: 'source' })
   source: string; // API, WEBHOOK, BATCH, SYSTEM, etc.
@@ -93,7 +100,7 @@ export class Journal {
   postedAt?: Date;
 
   @Column({ type: 'varchar', length: 100, name: 'created_by', nullable: true })
-  createdBy: string;
+  createdBy?: string;
 
   @Column({ type: 'jsonb', nullable: true })
   metadata?: Record<string, any>;
@@ -175,6 +182,49 @@ export class Journal {
       throw new Error(
         `Journal ${this.journalNumber} must have at least 2 entries (debit and credit)`,
       );
+    }
+  }
+
+  static create(props: {
+    ledgerId: string;
+    journalNumber: string;
+    type: JournalType;
+    description?: string;
+    reference?: string;
+    externalReference?: string;
+    correlationId?: string;
+    causationId?: string;
+    idempotencyKey?: string;
+    source: string;
+    createdBy?: string;
+    metadata?: Record<string, any>;
+    postedAt?: Date;
+    entries?: Entry[];
+  }): Journal {
+    const journal = new Journal();
+    journal.ledgerId = props.ledgerId;
+    journal.journalNumber = props.journalNumber;
+    journal.status = JournalStatus.PENDING;
+    journal.type = props.type;
+    journal.description = props.description;
+    journal.reference = props.reference;
+    journal.externalReference = props.externalReference;
+    journal.correlationId = props.correlationId;
+    journal.causationId = props.causationId;
+    journal.idempotencyKey = props.idempotencyKey;
+    journal.source = props.source;
+    journal.createdBy = props.createdBy;
+    journal.metadata = props.metadata;
+    journal.postedAt = props.postedAt;
+    journal.entries = props.entries || [];
+
+    return journal;
+  }
+
+  async setStatus(status: JournalStatus): Promise<void> {
+    this.status = status;
+    if (status === JournalStatus.POSTED) {
+      this.postedAt = new Date();
     }
   }
 }

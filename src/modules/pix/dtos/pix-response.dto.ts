@@ -73,7 +73,7 @@ export class PixResponseDto {
     example: '2025-10-21T12:00:00.000Z',
     required: false,
   })
-  completedAt?: Date;
+  completedAt?: Date | null;
 
   @ApiProperty({
     description: 'Idempotência',
