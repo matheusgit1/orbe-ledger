@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
 import { LedgerService } from './services/ledger.service';
-import { TransferService } from './services/transfer.service';
 import { JournalService } from './services/journal.service';
 import { BalanceSnapshotService } from './services/balance-snapshot.service';
 import { OutboxService } from './services/outbox.service';
@@ -18,7 +17,6 @@ import { LimiteService } from './services/limite.service';
 
 const services = [
   LedgerService,
-  TransferService,
   JournalService,
   BalanceSnapshotService,
   OutboxService,

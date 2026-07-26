@@ -19,35 +19,32 @@ import { Reconciliation } from '../entities/reconciliation.entity';
 import { SagaStep } from '../entities/saga-step.entity';
 import { Saga } from '../entities/saga.entity';
 import { Transaction } from '../entities/transaction.entity';
-import { IdempotencyRepository } from '../repositories/idempotency.repository';
-import { AccountsRepository } from '../repositories/accounts.repository';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([
-    AccountType,
-    Account,
-    Audit,
-    BalanceSnapshot,
-    ChartOfAccounts,
-    Currency,
-    Entry,
-    Hold,
-    Idempotency,
-    Inbox,
-    Journal,
-    Ledger,
-    Limit,
-    Organization,
-    Outbox,
-    Reconciliation,
-    SagaStep,
-    Saga,
-    Transaction,
-  ])],
-  providers: [
-    IdempotencyRepository,
-    AccountsRepository
+  imports: [
+    TypeOrmModule.forFeature([
+      AccountType,
+      Account,
+      Audit,
+      BalanceSnapshot,
+      ChartOfAccounts,
+      Currency,
+      Entry,
+      Hold,
+      Idempotency,
+      Inbox,
+      Journal,
+      Ledger,
+      Limit,
+      Organization,
+      Outbox,
+      Reconciliation,
+      SagaStep,
+      Saga,
+      Transaction,
+    ]),
   ],
-  exports: [TypeOrmModule, IdempotencyRepository, AccountsRepository],
+  providers: [],
+  exports: [TypeOrmModule],
 })
-export class OrmRepositoryModule { }
+export class OrmRepositoryModule {}

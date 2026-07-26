@@ -19,6 +19,7 @@ import { Entry } from './entry.entity';
 import { Audit } from './audit.entity';
 import { Outbox } from './outbox.entity';
 import { Transaction } from './transaction.entity';
+import { BalanceSnapshot } from './balance-snapshot.entity';
 
 export interface CreateJournalOptions {
   ledgerId: string;

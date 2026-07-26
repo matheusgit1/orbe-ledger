@@ -6,7 +6,10 @@ import {
   CreateJournalOptions,
   Journal,
 } from '../../infra/database/entities/journal.entity';
-import { Entry } from '../../infra/database/entities/entry.entity';
+import {
+  CreateEntryProps,
+  Entry,
+} from '../../infra/database/entities/entry.entity';
 import { BalanceSnapshot } from '../../infra/database/entities/balance-snapshot.entity';
 import {
   JournalType,
@@ -879,7 +882,8 @@ export class JournalService {
 
   async createJournal(
     queryRunner: QueryRunner,
-    options: Omit<CreateJournalOptions, 'journalNumber'>,
+    options: Omit<CreateJournalOptions, 'journalNumber' | 'entries'>,
+    entries?: Omit<CreateEntryProps, 'journalId' | 'sequence'>[],
   ): Promise<Journal> {
     const journal = Journal.create({
       ledgerId: options.ledgerId,
@@ -895,10 +899,18 @@ export class JournalService {
       createdBy: options.createdBy,
       metadata: options.metadata,
       postedAt: options.postedAt,
-      entries: options.entries || [],
     });
-    journal.setEntries(options.entries || []);
     const saved = await this.saveJournal(queryRunner, journal);
+    saved.setEntries(
+      entries?.map((entry, index) =>
+        this.entryService.createEntry({
+          ...entry,
+          sequence: index + 1,
+          journalId: saved.id,
+          metadata: {},
+        }),
+      ) || [],
+    );
     return saved;
   }
 

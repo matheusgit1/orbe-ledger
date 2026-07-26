@@ -29,6 +29,7 @@ export class BalanceSnapshotService {
       `Updating balance for account ${balance.accountId}, amount: ${balance.book}`,
     );
 
+
     console.log('snapshot antes: ', balance);
 
     balance.applyEntry(entries.amount, entries.side, entries.id, journal.id);

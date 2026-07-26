@@ -5,7 +5,6 @@ import { DataSource } from 'typeorm';
 import { Logger } from '@nestjs/common';
 import { IdempotencyService } from 'src/core/services/idempotency.service';
 import { PixRequestDto } from './dtos/pix-request.dto';
-import { AccountsRepository } from 'src/infra/database/repositories/accounts.repository';
 import { BalanceService } from 'src/core/services/balance.service';
 import { Account } from 'src/infra/database/entities/account.entity';
 import { QueryRunner } from 'typeorm/browser';
@@ -27,6 +26,8 @@ import { TransactionService } from 'src/core/services/transaction.service';
 import { EntityType } from 'src/infra/database/common/enums/idempotency.status';
 import { LimiteService } from 'src/core/services/limite.service';
 import { EntryService } from 'src/core/services/entry.service';
+import { BalanceSnapshotService } from 'src/core/services/balance-snapshot.service';
+import { AccountsService } from 'src/core/services/accounts.service';
 
 @Injectable()
 export class PixService {
@@ -34,7 +35,8 @@ export class PixService {
   constructor(
     @Inject(REQUEST) private readonly request: Request,
     private readonly idempotencyService: IdempotencyService,
-    private readonly accountRepository: AccountsRepository,
+    private readonly accountService: AccountsService,
+    private readonly balanceSnapshotService: BalanceSnapshotService,
     private readonly balanceService: BalanceService,
     private readonly journalService: JournalService,
     private readonly ledgerService: LedgerService,
@@ -107,8 +109,8 @@ export class PixService {
       }
 
       const [payerAccount, receiverAccount] = await Promise.all([
-        this.accountRepository.findById(queryRunner, body.originAccountId),
-        this.accountRepository.findById(queryRunner, body.destinationAccountId),
+        this.accountService.findById(queryRunner, body.originAccountId),
+        this.accountService.findById(queryRunner, body.destinationAccountId),
       ]);
 
       if (!receiverAccount) {
@@ -120,7 +122,7 @@ export class PixService {
         throw new Error(`Conta origem ${body.originAccountId} não encontrada`);
       }
 
-      await this.accountRepository.lockAccountsByIds(queryRunner, [
+      await this.accountService.lockAccountsByIds(queryRunner, [
         payerAccount.id,
         receiverAccount.id,
       ]);
@@ -170,35 +172,48 @@ export class PixService {
           createdBy: 'SYSTEM',
           metadata: {},
         },
+        [
+          {
+            accountId: payerAccount.id,
+            amount: body.amount,
+            side: EntrySide.DEBIT,
+            description: body.description,
+            currencyId: payerAccount.currencyId,
+            metadata: {},
+          },
+          {
+            accountId: receiverAccount.id,
+            amount: body.amount,
+            side: EntrySide.CREDIT,
+            description: body.description,
+            currencyId: receiverAccount.currencyId,
+            metadata: {},
+          },
+        ],
       );
-
-      createdJournal.setEntries([
-        this.entryService.createEntry({
-          journalId: createdJournal.id,
-          accountId: payerAccount.id,
-          amount: body.amount,
-          side: EntrySide.DEBIT,
-          description: body.description,
-          sequence: 1,
-          currencyId: payerAccount.currencyId,
-          metadata: {},
-        }),
-        this.entryService.createEntry({
-          journalId: createdJournal.id,
-          accountId: receiverAccount.id,
-          amount: body.amount,
-          side: EntrySide.CREDIT,
-          description: body.description,
-          sequence: 2,
-          currencyId: receiverAccount.currencyId,
-          metadata: {},
-        }),
-      ]);
 
       const registeredJournal = await this.journalService.registerJournal(
         queryRunner,
         hash,
         createdJournal,
+      );
+
+      console.log('registeredJournal', registeredJournal);
+
+      await this.balanceSnapshotService.updateBalance(
+        queryRunner,
+        registeredJournal,
+        payerAccount.balanceSnapshots,
+        registeredJournal.entries.find((e) => e.accountId === payerAccount.id)!,
+      );
+
+      await this.balanceSnapshotService.updateBalance(
+        queryRunner,
+        registeredJournal,
+        receiverAccount.balanceSnapshots,
+        registeredJournal.entries.find(
+          (e) => e.accountId === receiverAccount.id,
+        )!,
       );
 
       await this.auditService.createAudit(

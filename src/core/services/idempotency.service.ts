@@ -20,10 +20,6 @@ export class IdempotencyService {
     private readonly idempotencyRepository: Repository<Idempotency>,
   ) {}
 
-  async findByKey(key: string): Promise<Idempotency | null> {
-    return await this.idempotencyRepository.findOne({ where: { key } });
-  }
-
   async findTransactionByFilter({
     ...filters
   }: {
@@ -53,5 +49,9 @@ export class IdempotencyService {
     );
     idempotency.validate();
     return await queryRunner.manager.save(idempotency);
+  }
+
+  async findByKey(key: string): Promise<Idempotency | null> {
+    return await this.idempotencyRepository.findOne({ where: { key } });
   }
 }

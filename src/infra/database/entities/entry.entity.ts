@@ -8,12 +8,14 @@ import {
   JoinColumn,
   Index,
   Check,
+  OneToMany,
 } from 'typeorm';
 import { EntrySide } from '../common/enums/journal.enum';
 import { Journal } from './journal.entity';
 import { Account } from './account.entity';
 import { Currency } from './currency.entity';
 import { Hold } from './hold.entity';
+import { BalanceSnapshot } from './balance-snapshot.entity';
 
 export interface CreateEntryProps {
   journalId: string;

@@ -9,6 +9,7 @@ import {
   JoinColumn,
   Index,
   VersionColumn,
+  OneToOne,
 } from 'typeorm';
 import { AccountOwnerType, AccountStatus } from '../common/enums/account.enum';
 import { Ledger } from './ledger.entity';
@@ -119,8 +120,8 @@ export class Account {
   @OneToMany(() => Entry, (entry) => entry.account)
   entries: Entry[];
 
-  @OneToMany(() => BalanceSnapshot, (balance) => balance.account)
-  balanceSnapshots: BalanceSnapshot[];
+  @OneToOne(() => BalanceSnapshot, (balance) => balance.account)
+  balanceSnapshots: BalanceSnapshot;
 
   @OneToMany(() => Hold, (hold) => hold.account)
   holds: Hold[];
