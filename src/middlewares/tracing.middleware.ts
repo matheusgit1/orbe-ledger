@@ -1,17 +1,17 @@
 import { Injectable, NestMiddleware } from '@nestjs/common';
 import { type Request, Response, NextFunction } from 'express';
-import { HashGeneratorUtil } from '../util/hash-generator.util';
+import { randomUUID } from 'crypto';
 
 @Injectable()
 export class TracingMiddleware implements NestMiddleware {
   use(req: Request, _: Response, next: NextFunction) {
-    const originalHash = req.header('x-request-id');
+    const requestId = req.header('x-request-id');
 
-    if (originalHash) {
-      req.hash = originalHash;
+    if (requestId) {
+      req.hash = requestId;
       return next();
     }
-    req.hash = HashGeneratorUtil.generate();
+    req.hash = randomUUID();
     next();
   }
 }
