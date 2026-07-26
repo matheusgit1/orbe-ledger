@@ -26,6 +26,7 @@ import {
 import { TransactionService } from 'src/core/services/transaction.service';
 import { EntityType } from 'src/infra/database/common/enums/idempotency.status';
 import { LimiteService } from 'src/core/services/limite.service';
+import { EntryService } from 'src/core/services/entry.service';
 
 @Injectable()
 export class PixService {
@@ -41,6 +42,7 @@ export class PixService {
     private readonly transactionService: TransactionService,
     private readonly dataSource: DataSource,
     private readonly limiteService: LimiteService,
+    private readonly entryService: EntryService,
   ) {}
 
   private async getQueryRunner() {
@@ -105,10 +107,9 @@ export class PixService {
       }
 
       const [payerAccount, receiverAccount] = await Promise.all([
-        this.accountRepository.findById(body.originAccountId),
-        this.accountRepository.findById(body.destinationAccountId),
+        this.accountRepository.findById(queryRunner, body.originAccountId),
+        this.accountRepository.findById(queryRunner, body.destinationAccountId),
       ]);
-
 
       if (!receiverAccount) {
         throw new Error(
@@ -124,7 +125,9 @@ export class PixService {
         receiverAccount.id,
       ]);
 
-      //metodo ok
+      console.log('payerAccount', payerAccount);
+      console.log('receiverAccount', receiverAccount);
+
       await this.validateRules(
         queryRunner,
         payerAccount,
@@ -133,57 +136,69 @@ export class PixService {
         body.pixKey,
       );
 
-      const savedTransaction = await this.transactionService.createTransaction({
-        type: TransactionType.PIX,
-        amount: body.amount,
-        currencyId: payerAccount.currencyId,
-        originAccountId: payerAccount.id,
-        destinationAccountId: receiverAccount.id,
-        correlationId: body.idempotencyKey,
-        externalId: body.pixKey,
-        metadata: {
-          pixKey: body.pixKey,
-          description: body.description,
-          institutionType: 'SAME_INSTITUTION',
-          startedAt: new Date().toISOString(),
-          data: body,
-        },
-      });
+      const [savedTransaction, ledger] = await Promise.all([
+        this.transactionService.createTransaction({
+          type: TransactionType.PIX,
+          amount: body.amount,
+          currencyId: payerAccount.currencyId,
+          originAccountId: payerAccount.id,
+          destinationAccountId: receiverAccount.id,
+          correlationId: body.idempotencyKey,
+          externalId: body.pixKey,
+          metadata: {
+            pixKey: body.pixKey,
+            description: body.description,
+            institutionType: 'SAME_INSTITUTION',
+            startedAt: new Date().toISOString(),
+            data: body,
+          },
+        }),
+        this.ledgerService.getLedgerByCode(LedgerCode.PIX),
+      ]);
 
-      const ledger = await this.ledgerService.getLedgerByCode(LedgerCode.PIX);
-
-      const journal = await this.journalService.registerJournal(
+      const createdJournal = await this.journalService.createJournal(
         queryRunner,
-        hash,
         {
           ledgerId: ledger.id,
           type: JournalType.PIX,
-          status: JournalStatus.PENDING,
           description: body.description,
           reference: body.pixKey,
           externalReference: body.pixKey,
           correlationId: savedTransaction.id,
           causationId: body.idempotencyKey,
-          idempotencyKey: body.idempotencyKey,
           source: 'PIX_SAME_INSTITUTION',
           createdBy: 'SYSTEM',
           metadata: {},
-          postedAt: new Date(),
-          entries: [
-            {
-              accountId: payerAccount.id,
-              side: EntrySide.DEBIT,
-              amount: body.amount,
-              currencyId: payerAccount.currencyId,
-            },
-            {
-              accountId: receiverAccount.id,
-              side: EntrySide.CREDIT,
-              amount: body.amount,
-              currencyId: receiverAccount.currencyId,
-            },
-          ],
         },
+      );
+
+      createdJournal.setEntries([
+        this.entryService.createEntry({
+          journalId: createdJournal.id,
+          accountId: payerAccount.id,
+          amount: body.amount,
+          side: EntrySide.DEBIT,
+          description: body.description,
+          sequence: 1,
+          currencyId: payerAccount.currencyId,
+          metadata: {},
+        }),
+        this.entryService.createEntry({
+          journalId: createdJournal.id,
+          accountId: receiverAccount.id,
+          amount: body.amount,
+          side: EntrySide.CREDIT,
+          description: body.description,
+          sequence: 2,
+          currencyId: receiverAccount.currencyId,
+          metadata: {},
+        }),
+      ]);
+
+      const registeredJournal = await this.journalService.registerJournal(
+        queryRunner,
+        hash,
+        createdJournal,
       );
 
       await this.auditService.createAudit(
@@ -201,11 +216,11 @@ export class PixService {
         {
           transactionId: savedTransaction.id,
           status: savedTransaction.status,
-          debitEntryId: journal
+          debitEntryId: registeredJournal
             .getDebitEntry()
             .map((e) => e.id)
             .join(','),
-          creditEntryId: journal
+          creditEntryId: registeredJournal
             .getCreditEntry()
             .map((e) => e.id)
             .join(','),
@@ -221,6 +236,7 @@ export class PixService {
         entityType: EntityType.TRANSACTION,
         entityId: savedTransaction.id,
       });
+
       await queryRunner.commitTransaction();
 
       this.logger.log(
@@ -230,11 +246,11 @@ export class PixService {
       return {
         status: 'completed',
         transactionId: savedTransaction.id,
-        debitEntryId: journal
+        debitEntryId: registeredJournal
           .getDebitEntry()
           .map((e) => e.id)
           .join(','),
-        creditEntryId: journal
+        creditEntryId: registeredJournal
           .getCreditEntry()
           .map((e) => e.id)
           .join(','),

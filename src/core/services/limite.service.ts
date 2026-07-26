@@ -20,7 +20,7 @@ export class LimiteService {
   ): Promise<Limit | null> {
     return queryRunner.manager.findOne(Limit, {
       where: filters,
-      lock: { mode: 'pessimistic_read' },
+      // lock: { mode: 'pessimistic_read' },
     });
   }
 }

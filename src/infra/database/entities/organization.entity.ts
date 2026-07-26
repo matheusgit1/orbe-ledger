@@ -1,4 +1,3 @@
-
 import {
   Entity,
   Column,
@@ -10,7 +9,7 @@ import {
   ManyToOne,
   JoinColumn,
   OneToOne,
-  ForeignKey, 
+  ForeignKey,
 } from 'typeorm';
 import { OrganizationStatus } from '../common/enums/organization.enum';
 import { Ledger } from './ledger.entity';
@@ -18,10 +17,21 @@ import { Currency } from './currency.entity';
 // import { OrganizationStatus } from '../../../common/enums/organization.enum';
 // import { Ledger } from '../../ledgers/entities/ledger.entity';
 
+export interface CreateOrganizationProps {
+  name: string;
+  legalName: string;
+  document: string;
+  status: OrganizationStatus;
+  baseCurrencyId: string;
+  timezone?: string;
+  metadata?: Record<string, any>;
+}
+
 @Entity('organizations')
 @Index(['document'], { unique: true })
 @Index(['status'])
 export class Organization {
+  protected constructor() {}
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
@@ -63,4 +73,16 @@ export class Organization {
   @ManyToOne(() => Currency)
   @JoinColumn({ name: 'base_currency_id' })
   baseCurrency: Currency;
+
+  static create(props: CreateOrganizationProps): Organization {
+    const organization = new Organization();
+    organization.name = props.name;
+    organization.legalName = props.legalName;
+    organization.document = props.document;
+    organization.status = props.status;
+    organization.baseCurrencyId = props.baseCurrencyId;
+    organization.timezone = props.timezone || 'America/Sao_Paulo';
+    organization.metadata = props.metadata || {};
+    return organization;
+  }
 }

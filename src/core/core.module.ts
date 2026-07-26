@@ -16,41 +16,27 @@ import { EntryService } from './services/entry.service';
 import { CurrencyService } from './services/currency.service';
 import { LimiteService } from './services/limite.service';
 
+const services = [
+  LedgerService,
+  TransferService,
+  JournalService,
+  BalanceSnapshotService,
+  OutboxService,
+  AuditService,
+  BalanceService,
+  InstitutionIdentifierService,
+  FeeCalculatorService,
+  IdempotencyService,
+  AccountsService,
+  TransactionService,
+  EntryService,
+  CurrencyService,
+  LimiteService,
+];
+
 @Module({
   imports: [OrmModule],
-  providers: [
-    LedgerService,
-    TransferService,
-    JournalService,
-    BalanceSnapshotService,
-    OutboxService,
-    AuditService,
-    BalanceService,
-    InstitutionIdentifierService,
-    FeeCalculatorService,
-    IdempotencyService,
-    AccountsService,
-    TransactionService,
-    EntryService,
-    CurrencyService,
-    LimiteService,
-  ],
-  exports: [
-    LedgerService,
-    TransferService,
-    JournalService,
-    BalanceSnapshotService,
-    OutboxService,
-    AuditService,
-    BalanceService,
-    InstitutionIdentifierService,
-    FeeCalculatorService,
-    IdempotencyService,
-    AccountsService,
-    TransactionService,
-    EntryService,
-    CurrencyService,
-    LimiteService,
-  ],
+  providers: services,
+  exports: services,
 })
 export class CoreModule {}

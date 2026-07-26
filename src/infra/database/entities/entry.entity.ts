@@ -15,6 +15,20 @@ import { Account } from './account.entity';
 import { Currency } from './currency.entity';
 import { Hold } from './hold.entity';
 
+export interface CreateEntryProps {
+  journalId: string;
+  accountId: string;
+  side: EntrySide;
+  amount: number;
+  currencyId: string;
+  exchangeRate?: number;
+  amountOriginalCurrency?: number;
+  description?: string;
+  sequence: number;
+  holdId?: string;
+  metadata?: Record<string, any>;
+}
+
 @Entity('entries')
 @Index(['journalId', 'sequence'], { unique: true })
 @Index(['accountId', 'createdAt'])
@@ -124,19 +138,7 @@ export class Entry {
     }
   }
 
-  static create(props: {
-    journalId: string;
-    accountId: string;
-    side: EntrySide;
-    amount: number;
-    currencyId: string;
-    exchangeRate?: number;
-    amountOriginalCurrency?: number;
-    description?: string;
-    sequence: number;
-    holdId?: string;
-    metadata?: Record<string, any>;
-  }): Entry {
+  static create(props: CreateEntryProps): Entry {
     const entry = new Entry();
     entry.journalId = props.journalId;
     entry.accountId = props.accountId;
@@ -154,5 +156,26 @@ export class Entry {
 
     entry.validate();
     return entry;
+  }
+
+  static validateDebitAndCredits(entries: Entry[]): void {
+    let totalDebit = 0;
+    let totalCredit = 0;
+
+    for (const entry of entries) {
+      if (entry.isDebit()) {
+        totalDebit += entry.amount;
+      } else if (entry.isCredit()) {
+        totalCredit += entry.amount;
+      } else {
+        throw new Error(`Lado inválido: ${entry.side}`);
+      }
+    }
+
+    if (Math.abs(totalDebit - totalCredit) > 0.01) {
+      throw new Error(
+        `Débitos e créditos não batem: débitos=${totalDebit}, créditos=${totalCredit}`,
+      );
+    }
   }
 }

@@ -2,7 +2,10 @@
 import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource, LessThan, Like } from 'typeorm';
-import { Journal } from '../../infra/database/entities/journal.entity';
+import {
+  CreateJournalOptions,
+  Journal,
+} from '../../infra/database/entities/journal.entity';
 import { Entry } from '../../infra/database/entities/entry.entity';
 import { BalanceSnapshot } from '../../infra/database/entities/balance-snapshot.entity';
 import {
@@ -34,23 +37,6 @@ export interface CreateEntryDto {
   metadata?: Record<string, any>;
 }
 
-export interface CreateJournalOptions {
-  ledgerId: string;
-  type: JournalType;
-  status: JournalStatus;
-  description?: string;
-  reference?: string;
-  externalReference?: string;
-  correlationId: string;
-  causationId?: string;
-  idempotencyKey?: string;
-  source: string;
-  createdBy?: string;
-  entries: CreateEntryDto[];
-  metadata?: Record<string, any>;
-  postedAt?: Date;
-}
-
 @Injectable()
 export class JournalService {
   private readonly logger = new Logger(JournalService.name);
@@ -73,104 +59,52 @@ export class JournalService {
   async registerJournal(
     queryRunner: QueryRunner,
     hash: string,
-    dto: CreateJournalOptions,
+    journal: Journal,
   ): Promise<Journal> {
     try {
-      this.logger.log(`[${hash}] Criando journal tipo ${dto.type}`);
+      this.logger.log(`[${hash}] Criando journal tipo ${journal.type}`);
 
-      //metodo ok
-      this.validateDoubleEntry(dto.entries);
-
-      //metodo ok
-      await this.validateAccounts(dto.entries);
-
-      //metodo ok
-      await this.validateCurrencies(dto.entries);
-
-      //metodo ok
-      const journalNumber = await this.generateJournalNumber();
-
-      //metodo ok
-      const savedJournal = await this.createJournal(queryRunner, {
-        ledgerId: dto.ledgerId,
-        type: dto.type,
-        status: dto.status,
-        number: journalNumber,
-        description: dto.description,
-        reference: dto.reference,
-        externalReference: dto.externalReference,
-        correlationId: dto.correlationId,
-        causationId: dto.causationId,
-        idempotencyKey: dto.idempotencyKey,
-        source: dto.source,
-        createdBy: dto.createdBy || 'SYSTEM',
-        metadata: dto.metadata,
-        postedAt: dto.postedAt,
-        entries: dto.entries,
-      });
-
-      const savedEntries: Entry[] = [];
-      let sequence = 1;
-      for (const entryDto of dto.entries) {
-        //metodo ok
-        const entry = this.entryService.createEntry({
-          journalId: savedJournal.id,
-          accountId: entryDto.accountId,
-          side: entryDto.side,
-          amount: entryDto.amount,
-          currencyId: entryDto.currencyId,
-          exchangeRate: 1,
-          description: entryDto.description,
-          sequence: sequence++,
-          holdId: entryDto.holdId,
-          metadata: entryDto.metadata,
-        });
-        //metodo ok
-        const savedEntry = await this.entryService.saveEntry(
-          queryRunner,
-          entry,
-        );
-        savedEntries.push(savedEntry);
-      }
-
-      for (const entry of savedEntries) {
-        //metodo ok
+      for (const entry of journal.entries) {
+        const balanceSnapshot =
+          await this.balanceSnapshotService.getAvailableBalanceAndLock(
+            queryRunner,
+            entry.accountId,
+          );
+        if (!balanceSnapshot) {
+          throw new Error(
+            `Balance snapshot not found for account ${entry.accountId}`,
+          );
+        }
         await this.balanceSnapshotService.updateBalance(
           queryRunner,
-          entry.accountId,
-          entry.amount,
-          entry.side,
-          entry.currencyId,
-          entry.id,
-          savedJournal.id,
+          journal,
+          balanceSnapshot,
+          entry,
         );
       }
 
-      savedJournal.setStatus(JournalStatus.POSTED);
-      await this.saveJournal(queryRunner, savedJournal);
-      for (const entry of savedEntries) {
-        //metodo ok
-        await this.entryService.saveEntry(queryRunner, entry);
-      }
+      journal.setStatus(JournalStatus.POSTED);
+      const savedJournal = await this.saveJournal(queryRunner, journal);
 
       await this.auditService.createAudit(
         AuditEntity.JOURNAL,
-        savedJournal.id,
+        journal.id,
         AuditAction.CREATE,
-        dto.createdBy || 'SYSTEM',
+        journal.createdBy || 'SYSTEM',
         hash,
         {
-          journalNumber,
-          type: dto.type,
-          entriesCount: dto.entries.length,
-          totalAmount: dto.entries.reduce((sum, e) => sum + e.amount, 0) / 2,
+          journalNumber: journal.journalNumber,
+          type: journal.type,
+          entriesCount: journal.entries.length,
+          totalAmount:
+            journal.entries.reduce((sum, e) => sum + e.amount, 0) / 2,
         },
         {
-          id: savedJournal.id,
-          journalNumber: savedJournal.journalNumber,
-          type: savedJournal.type,
-          status: savedJournal.status,
-          entries: savedEntries.map((e) => ({
+          id: journal.id,
+          journalNumber: journal.journalNumber,
+          type: journal.type,
+          status: journal.status,
+          entries: journal.entries.map((e) => ({
             accountId: e.accountId,
             side: e.side,
             amount: e.amount,
@@ -179,13 +113,13 @@ export class JournalService {
         },
       );
 
-      await this.createOutboxEvents(savedJournal, savedEntries, queryRunner);
+      await this.createOutboxEvents(journal, savedJournal.entries, queryRunner);
 
       const result = await this.findByIdWithQueryRunner(
         queryRunner,
         savedJournal.id,
       );
-      this.logger.log(`[${hash}] Journal ${journalNumber} criado com sucesso`);
+      this.logger.log(`[${hash}] Journal ${savedJournal} criado com sucesso`);
       return result;
     } catch (error: any) {
       this.logger.error(`[${hash}] Erro ao criar journal: ${error.message}`);
@@ -193,269 +127,250 @@ export class JournalService {
     }
   }
 
-  async createReversalJournal(
-    originalJournalId: string,
-    reason: string,
-    traceId: string,
-    queryRunner: any,
-  ): Promise<Journal> {
-    const shouldManageTransaction = !queryRunner;
-    const qr = queryRunner || this.dataSource.createQueryRunner();
+  // async createReversalJournal(
+  //   originalJournalId: string,
+  //   reason: string,
+  //   traceId: string,
+  //   queryRunner: any,
+  // ): Promise<Journal> {
+  //   const shouldManageTransaction = !queryRunner;
+  //   const qr = queryRunner || this.dataSource.createQueryRunner();
 
-    if (shouldManageTransaction) {
-      await qr.connect();
-      await qr.startTransaction();
-    }
+  //   if (shouldManageTransaction) {
+  //     await qr.connect();
+  //     await qr.startTransaction();
+  //   }
 
-    try {
-      this.logger.log(
-        `[${traceId}] Criando journal de reversão para ${originalJournalId}`,
-      );
+  //   try {
+  //     this.logger.log(
+  //       `[${traceId}] Criando journal de reversão para ${originalJournalId}`,
+  //     );
 
-      const originalJournal = await qr.manager.findOne(Journal, {
-        where: { id: originalJournalId },
-        relations: { entries: true },
-      });
+  //     const originalJournal = await qr.manager.findOne(Journal, {
+  //       where: { id: originalJournalId },
+  //       relations: { entries: true },
+  //     });
 
-      if (!originalJournal) {
-        throw new Error(`Journal ${originalJournalId} não encontrado`);
-      }
+  //     if (!originalJournal) {
+  //       throw new Error(`Journal ${originalJournalId} não encontrado`);
+  //     }
 
-      if (!originalJournal.canBeReversed()) {
-        throw new Error(
-          `Journal ${originalJournal.journalNumber} não pode ser revertido`,
-        );
-      }
+  //     if (!originalJournal.canBeReversed()) {
+  //       throw new Error(
+  //         `Journal ${originalJournal.journalNumber} não pode ser revertido`,
+  //       );
+  //     }
 
-      const reversalEntries: CreateEntryDto[] = originalJournal.entries.map(
-        (entry) => ({
-          accountId: entry.accountId,
-          side:
-            entry.side === EntrySide.DEBIT ? EntrySide.CREDIT : EntrySide.DEBIT,
-          amount: entry.amount,
-          currencyId: entry.currencyId,
-          description: `Reversão de: ${entry.description || 'Entry original'}`,
-          metadata: {
-            originalEntryId: entry.id,
-            originalJournalId: originalJournalId,
-            reversalReason: reason,
-          },
-        }),
-      );
+  //     const reversalEntries: CreateEntryDto[] = originalJournal.entries.map(
+  //       (entry) => ({
+  //         accountId: entry.accountId,
+  //         side:
+  //           entry.side === EntrySide.DEBIT ? EntrySide.CREDIT : EntrySide.DEBIT,
+  //         amount: entry.amount,
+  //         currencyId: entry.currencyId,
+  //         description: `Reversão de: ${entry.description || 'Entry original'}`,
+  //         metadata: {
+  //           originalEntryId: entry.id,
+  //           originalJournalId: originalJournalId,
+  //           reversalReason: reason,
+  //         },
+  //       }),
+  //     );
 
-      const journalNumber = await this.generateJournalNumber();
+  //     const journalNumber = await this.generateJournalNumber();
 
-      const reversalJournal = await this.createJournal(qr, {
-        ledgerId: originalJournal.ledgerId,
-        number: journalNumber,
-        type: JournalType.REVERSAL,
-        status: JournalStatus.PENDING,
-        description: `Reversão do journal ${originalJournal.journalNumber}: ${reason}`,
-        reference: originalJournal.reference,
-        externalReference: originalJournal.externalReference,
-        correlationId: originalJournal.id,
-        causationId: originalJournal.causationId,
-        source: 'REVERSAL',
-        createdBy: 'SYSTEM',
-        entries: reversalEntries,
-        metadata: {
-          originalJournalId,
-          originalJournalNumber: originalJournal.journalNumber,
-          reversalReason: reason,
-          isFullReversal: true,
-        },
-      });
+  //     const reversalJournal = await this.createJournal(qr, {
+  //       ledgerId: originalJournal.ledgerId,
+  //       number: journalNumber,
+  //       type: JournalType.REVERSAL,
+  //       status: JournalStatus.PENDING,
+  //       description: `Reversão do journal ${originalJournal.journalNumber}: ${reason}`,
+  //       reference: originalJournal.reference,
+  //       externalReference: originalJournal.externalReference,
+  //       correlationId: originalJournal.id,
+  //       causationId: originalJournal.causationId,
+  //       source: 'REVERSAL',
+  //       createdBy: 'SYSTEM',
+  //       entries: reversalEntries,
+  //       metadata: {
+  //         originalJournalId,
+  //         originalJournalNumber: originalJournal.journalNumber,
+  //         reversalReason: reason,
+  //         isFullReversal: true,
+  //       },
+  //     });
 
-      originalJournal.status = JournalStatus.REVERSED;
-      await qr.manager.save(originalJournal);
+  //     originalJournal.status = JournalStatus.REVERSED;
+  //     await qr.manager.save(originalJournal);
 
-      if (shouldManageTransaction) {
-        await qr.commitTransaction();
-      }
+  //     if (shouldManageTransaction) {
+  //       await qr.commitTransaction();
+  //     }
 
-      this.logger.log(`[${traceId}] Journal de reversão criado com sucesso`);
-      return reversalJournal;
-    } catch (error: any) {
-      if (shouldManageTransaction) {
-        await qr.rollbackTransaction();
-      }
-      this.logger.error(
-        `[${traceId}] Erro ao criar reversão: ${error.message}`,
-      );
-      throw error;
-    } finally {
-      if (shouldManageTransaction) {
-        await qr.release();
-      }
-    }
-  }
+  //     this.logger.log(`[${traceId}] Journal de reversão criado com sucesso`);
+  //     return reversalJournal;
+  //   } catch (error: any) {
+  //     if (shouldManageTransaction) {
+  //       await qr.rollbackTransaction();
+  //     }
+  //     this.logger.error(
+  //       `[${traceId}] Erro ao criar reversão: ${error.message}`,
+  //     );
+  //     throw error;
+  //   } finally {
+  //     if (shouldManageTransaction) {
+  //       await qr.release();
+  //     }
+  //   }
+  // }
 
   /**
    * Cria reversão parcial (apenas entries específicas)
    */
-  async createPartialReversalJournal(
-    originalJournalId: string,
-    entriesToReverse: Array<{
-      entryId: string;
-      accountId: string;
-      amount: number;
-      side: EntrySide;
-      currencyId: string;
-    }>,
-    reason: string,
-    traceId: string,
-    queryRunner: any,
-  ): Promise<Journal> {
-    const shouldManageTransaction = !queryRunner;
-    const qr = queryRunner || this.dataSource.createQueryRunner();
+  // async createPartialReversalJournal(
+  //   originalJournalId: string,
+  //   entriesToReverse: Array<{
+  //     entryId: string;
+  //     accountId: string;
+  //     amount: number;
+  //     side: EntrySide;
+  //     currencyId: string;
+  //   }>,
+  //   reason: string,
+  //   traceId: string,
+  //   queryRunner: any,
+  // ): Promise<Journal> {
+  //   const shouldManageTransaction = !queryRunner;
+  //   const qr = queryRunner || this.dataSource.createQueryRunner();
 
-    if (shouldManageTransaction) {
-      await qr.connect();
-      await qr.startTransaction();
-    }
+  //   if (shouldManageTransaction) {
+  //     await qr.connect();
+  //     await qr.startTransaction();
+  //   }
 
-    try {
-      this.logger.log(
-        `[${traceId}] Criando reversão parcial para ${originalJournalId}`,
-      );
+  //   try {
+  //     this.logger.log(
+  //       `[${traceId}] Criando reversão parcial para ${originalJournalId}`,
+  //     );
 
-      const originalJournal = await qr.manager.findOne(Journal, {
-        where: { id: originalJournalId },
-        relations: { entries: true },
-      });
+  //     const originalJournal = await qr.manager.findOne(Journal, {
+  //       where: { id: originalJournalId },
+  //       relations: { entries: true },
+  //     });
 
-      if (!originalJournal) {
-        throw new Error(`Journal ${originalJournalId} não encontrado`);
-      }
+  //     if (!originalJournal) {
+  //       throw new Error(`Journal ${originalJournalId} não encontrado`);
+  //     }
 
-      // Cria entries de reversão para as entries específicas
-      const reversalEntries: CreateEntryDto[] = entriesToReverse.map(
-        (entry) => ({
-          accountId: entry.accountId,
-          side:
-            entry.side === EntrySide.DEBIT ? EntrySide.CREDIT : EntrySide.DEBIT,
-          amount: entry.amount,
-          currencyId: entry.currencyId,
-          description: `Reversão parcial de entry ${entry.entryId}`,
-          metadata: {
-            originalEntryId: entry.entryId,
-            originalJournalId: originalJournalId,
-            reversalReason: reason,
-          },
-        }),
-      );
+  //     // Cria entries de reversão para as entries específicas
+  //     const reversalEntries: CreateEntryDto[] = entriesToReverse.map(
+  //       (entry) => ({
+  //         accountId: entry.accountId,
+  //         side:
+  //           entry.side === EntrySide.DEBIT ? EntrySide.CREDIT : EntrySide.DEBIT,
+  //         amount: entry.amount,
+  //         currencyId: entry.currencyId,
+  //         description: `Reversão parcial de entry ${entry.entryId}`,
+  //         metadata: {
+  //           originalEntryId: entry.entryId,
+  //           originalJournalId: originalJournalId,
+  //           reversalReason: reason,
+  //         },
+  //       }),
+  //     );
 
-      const journalNumber = await this.generateJournalNumber();
+  //     const journalNumber = await this.generateJournalNumber();
 
-      const reversalJournal = await this.createJournal(qr, {
-        ledgerId: originalJournal.ledgerId,
-        number: journalNumber,
-        type: JournalType.REVERSAL,
-        status: JournalStatus.PENDING,
-        description: `Reversão parcial do journal ${originalJournal.journalNumber}: ${reason}`,
-        correlationId: originalJournal.id,
-        source: 'REVERSAL',
-        createdBy: 'SYSTEM',
-        entries: reversalEntries,
-        metadata: {
-          originalJournalId,
-          originalJournalNumber: originalJournal.journalNumber,
-          reversalReason: reason,
-          isPartialReversal: true,
-          reversedEntries: entriesToReverse.map((e) => e.entryId),
-        },
-      });
+  //     const reversalJournal = await this.createJournal(qr, {
+  //       ledgerId: originalJournal.ledgerId,
+  //       number: journalNumber,
+  //       type: JournalType.REVERSAL,
+  //       status: JournalStatus.PENDING,
+  //       description: `Reversão parcial do journal ${originalJournal.journalNumber}: ${reason}`,
+  //       correlationId: originalJournal.id,
+  //       source: 'REVERSAL',
+  //       createdBy: 'SYSTEM',
+  //       entries: reversalEntries,
+  //       metadata: {
+  //         originalJournalId,
+  //         originalJournalNumber: originalJournal.journalNumber,
+  //         reversalReason: reason,
+  //         isPartialReversal: true,
+  //         reversedEntries: entriesToReverse.map((e) => e.entryId),
+  //       },
+  //     });
 
-      if (shouldManageTransaction) {
-        await qr.commitTransaction();
-      }
+  //     if (shouldManageTransaction) {
+  //       await qr.commitTransaction();
+  //     }
 
-      this.logger.log(`[${traceId}] Reversão parcial criada com sucesso`);
-      return reversalJournal;
-    } catch (error: any) {
-      if (shouldManageTransaction) {
-        await qr.rollbackTransaction();
-      }
-      this.logger.error(
-        `[${traceId}] Erro ao criar reversão parcial: ${error.message}`,
-      );
-      throw error;
-    } finally {
-      if (shouldManageTransaction) {
-        await qr.release();
-      }
-    }
-  }
+  //     this.logger.log(`[${traceId}] Reversão parcial criada com sucesso`);
+  //     return reversalJournal;
+  //   } catch (error: any) {
+  //     if (shouldManageTransaction) {
+  //       await qr.rollbackTransaction();
+  //     }
+  //     this.logger.error(
+  //       `[${traceId}] Erro ao criar reversão parcial: ${error.message}`,
+  //     );
+  //     throw error;
+  //   } finally {
+  //     if (shouldManageTransaction) {
+  //       await qr.release();
+  //     }
+  //   }
+  // }
 
   /**
    * Valida que débitos = créditos (partidas dobradas)
    */
-  private validateDoubleEntry(entries: CreateEntryDto[]): void {
-    let totalDebit = 0;
-    let totalCredit = 0;
+  // private validateDoubleEntry(entries: Entry[]): void {
+  //   let totalDebit = 0;
+  //   let totalCredit = 0;
 
-    for (const entry of entries) {
-      if (entry.side === EntrySide.DEBIT) {
-        totalDebit += entry.amount;
-      } else if (entry.side === EntrySide.CREDIT) {
-        totalCredit += entry.amount;
-      } else {
-        throw new Error(`Lado inválido: ${entry.side}`);
-      }
-    }
+  //   for (const entry of entries) {
+  //     if (entry.isDebit()) {
+  //       totalDebit += entry.amount;
+  //     } else if (entry.isCredit()) {
+  //       totalCredit += entry.amount;
+  //     } else {
+  //       throw new Error(`Lado inválido: ${entry.side}`);
+  //     }
+  //   }
 
-    if (Math.abs(totalDebit - totalCredit) > 0.01) {
-      throw new Error(
-        `Journal não está balanceado. Débito: ${totalDebit}, Crédito: ${totalCredit}`,
-      );
-    }
+  //   if (Math.abs(totalDebit - totalCredit) > 0.01) {
+  //     throw new Error(
+  //       `Journal não está balanceado. Débito: ${totalDebit}, Crédito: ${totalCredit}`,
+  //     );
+  //   }
 
-    if (entries.length < 2) {
-      throw new Error(
-        'Journal deve ter pelo menos 2 entries (débito e crédito)',
-      );
-    }
-  }
+  //   if (entries.length < 2) {
+  //     throw new Error(
+  //       'Journal deve ter pelo menos 2 entries (débito e crédito)',
+  //     );
+  //   }
+  // }
 
-  /**
-   * Valida que todas as contas existem e estão ativas
-   */
-  private async validateAccounts(entries: CreateEntryDto[]): Promise<void> {
-    const accountIds = [...new Set(entries.map((e) => e.accountId))];
+  // /**
+  //  * Valida que todas as moedas existem
+  //  */
+  // private async validateCurrencies(entries: CreateEntryDto[]): Promise<void> {
+  //   const currencyIds = [...new Set(entries.map((e) => e.currencyId))];
 
-    for (const accountId of accountIds) {
-      const account = await this.accountService.findById(accountId);
+  //   for (const currencyId of currencyIds) {
+  //     const currency = await this.currencyService.findByFilters({
+  //       id: currencyId,
+  //     });
 
-      if (!account) {
-        throw new Error(`Conta ${accountId} não encontrada`);
-      }
+  //     if (!currency) {
+  //       throw new Error(`Moeda ${currencyId} não encontrada`);
+  //     }
 
-      if (!account.isActive()) {
-        throw new Error(`Conta ${accountId} não está ativa`);
-      }
-    }
-  }
-
-  /**
-   * Valida que todas as moedas existem
-   */
-  private async validateCurrencies(entries: CreateEntryDto[]): Promise<void> {
-    const currencyIds = [...new Set(entries.map((e) => e.currencyId))];
-
-    for (const currencyId of currencyIds) {
-      const currency = await this.currencyService.findByFilters({
-        id: currencyId,
-      });
-
-      if (!currency) {
-        throw new Error(`Moeda ${currencyId} não encontrada`);
-      }
-
-      if (!currency.isActive) {
-        throw new Error(`Moeda ${currencyId} não está ativa`);
-      }
-    }
-  }
+  //     if (!currency.isActive) {
+  //       throw new Error(`Moeda ${currencyId} não está ativa`);
+  //     }
+  //   }
+  // }
 
   /**
    * Gera número único para journal
@@ -964,18 +879,25 @@ export class JournalService {
 
   async createJournal(
     queryRunner: QueryRunner,
-    options: CreateJournalOptions & { number: string },
+    options: Omit<CreateJournalOptions, 'journalNumber'>,
   ): Promise<Journal> {
     const journal = Journal.create({
       ledgerId: options.ledgerId,
-      journalNumber: options.number,
-      type: JournalType.PIX,
-      description: 'Transferência PIX',
-      source: 'PIX_SAME_INSTITUTION',
-      createdBy: 'SYSTEM',
+      journalNumber: await this.generateJournalNumber(),
+      type: options.type,
+      description: options.description,
+      reference: options.reference,
+      externalReference: options.externalReference,
       correlationId: options.correlationId,
       causationId: options.causationId,
+      idempotencyKey: options.idempotencyKey,
+      source: options.source,
+      createdBy: options.createdBy,
+      metadata: options.metadata,
+      postedAt: options.postedAt,
+      entries: options.entries || [],
     });
+    journal.setEntries(options.entries || []);
     const saved = await this.saveJournal(queryRunner, journal);
     return saved;
   }

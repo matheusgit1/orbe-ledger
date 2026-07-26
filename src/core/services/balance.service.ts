@@ -22,7 +22,7 @@ export class BalanceService {
     const snapshot = await queryRunner.manager.findOne(BalanceSnapshot, {
       where: { accountId, currencyId },
       order: { version: 'DESC' },
-      lock: { mode: 'pessimistic_read' },
+      // lock: { mode: 'pessimistic_read' },
     });
 
     if (!snapshot) {

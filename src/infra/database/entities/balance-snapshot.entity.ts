@@ -18,6 +18,7 @@ import { Entry } from './entry.entity';
 @Entity('balance_snapshots')
 @Index(['accountId', 'updatedAt'])
 @Index(['accountId', 'version'])
+@Index(['accountId'], { unique: true })
 @Index(['lastEntryId'])
 @Index(['lastJournalId'])
 export class BalanceSnapshot {
@@ -125,11 +126,11 @@ export class BalanceSnapshot {
         : this.available;
 
     if (side === EntrySide.DEBIT) {
-      this.book = currentBook - amount;
-      this.available = currentAvailable - amount;
+      this.book = currentBook - parseFloat(amount.toString());
+      this.available = currentAvailable - parseFloat(amount.toString());
     } else {
-      this.book = currentBook + amount;
-      this.available = currentAvailable + amount;
+      this.book = currentBook + parseFloat(amount.toString());
+      this.available = currentAvailable + parseFloat(amount.toString());
     }
     if (entryId) {
       this.lastEntryId = entryId;

@@ -17,90 +17,206 @@ import { Organization } from '../infra/database/entities/organization.entity';
 import { BalanceSnapshot } from '../infra/database/entities/balance-snapshot.entity';
 import { DataSource } from 'typeorm';
 import { v4 as uuidv4 } from 'uuid';
+import { QueryRunner } from 'typeorm';
 
-export async function seedDatabase(dataSource: DataSource) {
-  console.log('🌱 Starting database seed...');
+const clearDatabase = async (dataSource: DataSource) => {
+  console.log('🧹 Clearing database...');
 
-  const currencyRepo = dataSource.getRepository(Currency);
-  let brlCurrency = await currencyRepo.findOne({ where: { code: 'BRL' } });
+  const queryRunner = dataSource.createQueryRunner();
+  await queryRunner.connect();
+  await queryRunner.startTransaction();
 
-  if (!brlCurrency) {
-    brlCurrency = currencyRepo.create({
-      code: 'BRL',
-      numericCode: '986',
-      symbol: 'R$',
-      decimalPlaces: 2,
-    });
-    await currencyRepo.save(brlCurrency);
-    console.log('✅ BRL Currency created');
+  try {
+    // Get all table names from public schema
+    const tables = await queryRunner.query(`
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_schema = 'public'
+      AND table_type = 'BASE TABLE'
+    `);
+
+    // Truncate all tables with CASCADE to handle foreign key constraints
+    if (tables.length > 0) {
+      const tableNames = tables.map((t: any) => `"${t.table_name}"`).join(', ');
+      await queryRunner.query(`TRUNCATE TABLE ${tableNames} CASCADE`);
+    }
+
+    await queryRunner.commitTransaction();
+    console.log('✅ Database cleared successfully');
+  } catch (error) {
+    await queryRunner.rollbackTransaction();
+    console.error('❌ Error clearing database:', error);
+    throw error;
+  } finally {
+    await queryRunner.release();
   }
+};
 
-  // 2. Criar Organization
-  const orgRepo = dataSource.getRepository(Organization);
-  let organization = await orgRepo.findOne({
-    where: { document: '12345678000199' },
+const createCurrency = async (dataSource: DataSource) => {
+  const currencyRepo = dataSource.getRepository(Currency);
+
+  const currency = currencyRepo.create({
+    code: 'BRL',
+    numericCode: '986',
+    symbol: 'R$',
+    decimalPlaces: 2,
+    metadata: { environment: 'development', type: 'seed' },
   });
 
-  if (!organization) {
-    organization = new Organization();
-    organization.name = 'Orbe Ledger';
-    organization.legalName = 'Orbe Ledger Tecnologia Ltda';
-    organization.document = '12345678000199';
-    organization.status = OrganizationStatus.ACTIVE;
-    organization.timezone = 'America/Sao_Paulo';
-    organization.baseCurrencyId = brlCurrency.id;
-    organization.metadata = { environment: 'development' };
-    await orgRepo.save(organization);
-    console.log('✅ Organization created');
-  }
+  await currencyRepo.save(currency);
+  console.log('✅ BRL Currency created');
+  return currency;
+};
 
-  // 3. Criar Ledger
+const createOrganization = async (
+  dataSource: DataSource,
+  currency: Currency,
+) => {
+  const orgRepo = dataSource.getRepository(Organization);
+  const organization = Organization.create({
+    name: 'Orbe Ledger',
+    legalName: 'Orbe Ledger Tecnologia Ltda',
+    document: '12345678000199',
+    status: OrganizationStatus.ACTIVE,
+    timezone: 'America/Sao_Paulo',
+    baseCurrencyId: currency.id,
+    metadata: { environment: 'development' },
+  });
+
+  console.log('✅ Organization created');
+  return await orgRepo.save(organization);
+};
+
+const createLedgers = async (
+  dataSource: DataSource,
+  organization: Organization,
+) => {
   const ledgerRepo = dataSource.getRepository(Ledger);
-  let ledger = await ledgerRepo.findOne({
+
+  const ledgers = [
+    {
+      organizationId: organization.id,
+      code: LedgerCode.MAIN,
+      name: 'Ledger Principal',
+      status: LedgerStatus.ACTIVE,
+    },
+    {
+      organizationId: organization.id,
+      code: LedgerCode.SETTLEMENT,
+      name: 'Ledger de Liquidação',
+      status: LedgerStatus.ACTIVE,
+    },
+    {
+      organizationId: organization.id,
+      code: LedgerCode.CARD,
+      name: 'Ledger de Cartões',
+      status: LedgerStatus.ACTIVE,
+    },
+    {
+      organizationId: organization.id,
+      code: LedgerCode.ESCROW,
+      name: 'Ledger de Escrow',
+      status: LedgerStatus.ACTIVE,
+    },
+    {
+      organizationId: organization.id,
+      code: LedgerCode.PIX,
+      name: 'Ledger PIX',
+      status: LedgerStatus.ACTIVE,
+    },
+    {
+      organizationId: organization.id,
+      code: LedgerCode.TREASURY,
+      name: 'Ledger de Tesouraria',
+      status: LedgerStatus.ACTIVE,
+    },
+  ];
+
+  await Promise.all(
+    ledgers.map((ledger) =>
+      ledgerRepo.upsert(ledger, ['organizationId', 'code']),
+    ),
+  );
+
+  const ledgerMain = await ledgerRepo.findOneOrFail({
     where: { organizationId: organization.id, code: LedgerCode.MAIN },
   });
 
-  if (!ledger) {
-    ledger = new Ledger();
-    ledger.organizationId = organization.id;
-    ledger.code = LedgerCode.MAIN;
-    ledger.name = 'Ledger Principal';
-    ledger.description = 'Ledger principal para operações';
-    ledger.status = LedgerStatus.ACTIVE;
-    await ledgerRepo.save(ledger);
-    console.log('✅ Ledger created');
-  }
+  console.log('✅ All Ledgers created/updated');
+  return ledgerMain;
+};
 
-  // 4. Criar Account Types
+const createAccountTypes = async (dataSource: DataSource) => {
   const accountTypeRepo = dataSource.getRepository(AccountType);
-  let assetAccountType = await accountTypeRepo.findOne({
-    where: { code: 'ASSET' },
-  });
 
-  if (!assetAccountType) {
-    assetAccountType = AccountType.create(
+  const accountTypes = [
+    AccountType.create(
       'ASSET',
       'Ativo',
       AccountNature.ASSET,
       NormalBalance.DEBIT,
       undefined,
       0,
-    );
-    await accountTypeRepo.save(assetAccountType);
-    console.log('✅ Account Type ASSET created');
-  }
+    ),
+    AccountType.create(
+      'LIABILITY',
+      'Passivo',
+      AccountNature.LIABILITY,
+      NormalBalance.CREDIT,
+      undefined,
+      0,
+    ),
+    AccountType.create(
+      'EQUITY',
+      'Patrimônio Líquido',
+      AccountNature.EQUITY,
+      NormalBalance.CREDIT,
+      undefined,
+      0,
+    ),
+    AccountType.create(
+      'REVENUE',
+      'Receita',
+      AccountNature.REVENUE,
+      NormalBalance.CREDIT,
+      undefined,
+      0,
+    ),
+    AccountType.create(
+      'EXPENSE',
+      'Despesa',
+      AccountNature.EXPENSE,
+      NormalBalance.DEBIT,
+      undefined,
+      0,
+    ),
+  ];
 
-  // 5. Criar Accounts para teste PIX
+  await Promise.all(
+    accountTypes.map((accountType) =>
+      accountTypeRepo.upsert(accountType, ['code']),
+    ),
+  );
+
+  console.log('✅ All Account Types created/updated');
+};
+
+const createTestAccounts = async (
+  dataSource: DataSource,
+  ledgerMain: Ledger,
+  assetAccountType: AccountType,
+  brlCurrency: Currency,
+) => {
   const accountRepo = dataSource.getRepository(Account);
   const balanceSnapshotRepo = dataSource.getRepository(BalanceSnapshot);
 
   // Conta Pagador (Cliente)
   let payerAccount = await accountRepo.findOne({
-    where: { ledgerId: ledger.id, code: 'PAYER-001' },
+    where: { ledgerId: ledgerMain.id, code: 'PAYER-001' },
   });
   if (!payerAccount) {
     payerAccount = accountRepo.create({
-      ledgerId: ledger.id,
+      ledgerId: ledgerMain.id,
       accountTypeId: assetAccountType.id,
       ownerId: uuidv4(),
       ownerType: AccountOwnerType.CUSTOMER,
@@ -132,11 +248,11 @@ export async function seedDatabase(dataSource: DataSource) {
 
   // Conta Destinatário (Cliente)
   let receiverAccount = await accountRepo.findOne({
-    where: { ledgerId: ledger.id, code: 'RECEIVER-001' },
+    where: { ledgerId: ledgerMain.id, code: 'RECEIVER-001' },
   });
   if (!receiverAccount) {
     receiverAccount = accountRepo.create({
-      ledgerId: ledger.id,
+      ledgerId: ledgerMain.id,
       accountTypeId: assetAccountType.id,
       ownerId: uuidv4(),
       ownerType: AccountOwnerType.CUSTOMER,
@@ -166,7 +282,19 @@ export async function seedDatabase(dataSource: DataSource) {
     console.log('  💰 Receiver initial balance: R$ 5.000,00');
   }
 
-  // Contas de Reserva do Sistema (para fluxo PIX)
+  return { payerAccount, receiverAccount };
+};
+
+const createReserveAccounts = async (
+  dataSource: DataSource,
+  ledgerMain: Ledger,
+  assetAccountType: AccountType,
+  brlCurrency: Currency,
+  organization: Organization,
+) => {
+  const accountRepo = dataSource.getRepository(Account);
+  const balanceSnapshotRepo = dataSource.getRepository(BalanceSnapshot);
+
   const reserveAccounts = [
     {
       code: 'RESERVE-PAYER',
@@ -189,11 +317,11 @@ export async function seedDatabase(dataSource: DataSource) {
 
   for (const reserveData of reserveAccounts) {
     let reserveAccount = await accountRepo.findOne({
-      where: { ledgerId: ledger.id, code: reserveData.code },
+      where: { ledgerId: ledgerMain.id, code: reserveData.code },
     });
     if (!reserveAccount) {
       reserveAccount = accountRepo.create({
-        ledgerId: ledger.id,
+        ledgerId: ledgerMain.id,
         accountTypeId: assetAccountType.id,
         ownerId: organization.id,
         ownerType: AccountOwnerType.SYSTEM,
@@ -225,6 +353,42 @@ export async function seedDatabase(dataSource: DataSource) {
     reserveAccountIds[reserveData.code] = reserveAccount.id;
   }
 
+  return reserveAccountIds;
+};
+
+export async function seedDatabase(dataSource: DataSource) {
+  await clearDatabase(dataSource);
+
+  console.log('🌱 Starting database seed...');
+
+  const brlCurrency = await createCurrency(dataSource);
+
+  const organization = await createOrganization(dataSource, brlCurrency);
+
+  const ledgerMain = await createLedgers(dataSource, organization);
+
+  await createAccountTypes(dataSource);
+
+  const accountTypeRepo = dataSource.getRepository(AccountType);
+  const assetAccountType = await accountTypeRepo.findOneOrFail({
+    where: { code: 'ASSET' },
+  });
+
+  const { payerAccount, receiverAccount } = await createTestAccounts(
+    dataSource,
+    ledgerMain,
+    assetAccountType,
+    brlCurrency,
+  );
+
+  const reserveAccountIds = await createReserveAccounts(
+    dataSource,
+    ledgerMain,
+    assetAccountType,
+    brlCurrency,
+    organization,
+  );
+
   console.log('\n🎉 Seed completed successfully!');
   console.log('\n📋 Account IDs for PIX Transfer Test:');
   console.log(`  Payer Account ID: ${payerAccount.id}`);
@@ -234,6 +398,6 @@ export async function seedDatabase(dataSource: DataSource) {
   console.log(
     `  Receiver Reserve ID: ${reserveAccountIds['RESERVE-RECEIVER']}`,
   );
-  console.log(`  Ledger ID: ${ledger.id}`);
+  console.log(`  Ledger ID: ${ledgerMain.id}`);
   console.log(`  Currency ID: ${brlCurrency.id}`);
 }

@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, QueryRunner, Repository } from 'typeorm';
 import { Account } from '../entities/account.entity';
+import { BalanceSnapshot } from '../entities/balance-snapshot.entity';
 
 @Injectable()
 export class AccountsRepository {
@@ -10,8 +11,26 @@ export class AccountsRepository {
     private readonly repository: Repository<Account>,
   ) {}
 
-  async findById(id: string): Promise<Account | null> {
-    return await this.repository.findOne({ where: { id } });
+  async findById(
+    queryRunner: QueryRunner,
+    id: string,
+  ): Promise<Account | null> {
+    const account = await queryRunner.manager.findOne(Account, {
+      where: { id },
+      relations: {
+        balanceSnapshots: true,
+        currency: true,
+      },
+    });
+    if (
+      account &&
+      (!account.balanceSnapshots || account.balanceSnapshots.length === 0)
+    ) {
+      account.balanceSnapshots = [
+        BalanceSnapshot.createInitial(account.id, account.currencyId),
+      ];
+    }
+    return account;
   }
 
   async findByCode(
@@ -27,7 +46,6 @@ export class AccountsRepository {
   ): Promise<Account[] | null> {
     return await queryRunner.manager.find(Account, {
       where: { id: In(ids) },
-      lock: { mode: 'pessimistic_read' },
     });
   }
 }

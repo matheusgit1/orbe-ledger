@@ -5,6 +5,7 @@ import { BalanceSnapshot } from '../../infra/database/entities/balance-snapshot.
 import { EntrySide } from '../../infra/database/common/enums/journal.enum';
 import { Entry } from '../../infra/database/entities/entry.entity';
 import { QueryRunner } from 'typeorm/browser';
+import { Journal } from 'src/infra/database/entities/journal.entity';
 
 @Injectable()
 export class BalanceSnapshotService {
@@ -20,34 +21,23 @@ export class BalanceSnapshotService {
    */
   async updateBalance(
     queryRunner: QueryRunner,
-    accountId: string,
-    amount: number,
-    side: EntrySide,
-    currencyId: string,
-    entryId?: string,
-    journalId?: string,
+    journal: Journal,
+    balance: BalanceSnapshot,
+    entries: Entry,
   ): Promise<BalanceSnapshot> {
     this.logger.log(
-      `Updating balance for account ${accountId}, amount: ${amount}, side: ${side}`,
+      `Updating balance for account ${balance.accountId}, amount: ${balance.book}`,
     );
 
-    const repository = queryRunner.manager;
+    console.log('snapshot antes: ', balance);
 
-    let snapshot = await repository.findOne(BalanceSnapshot, {
-      where: { accountId },
-      order: { version: 'DESC' },
-      lock: { mode: 'pessimistic_read' },
-    });
+    balance.applyEntry(entries.amount, entries.side, entries.id, journal.id);
 
-    if (!snapshot) {
-      snapshot = BalanceSnapshot.createInitial(accountId, currencyId);
-    }
+    console.log('snapshot depois: ', balance);
 
-    snapshot.applyEntry(amount, side, entryId, journalId);
+    balance.validate();
 
-    snapshot.validate();
-
-    const savedSnapshot = await repository.save(snapshot);
+    const savedSnapshot = await queryRunner.manager.save(balance);
 
     return savedSnapshot;
   }
@@ -60,8 +50,16 @@ export class BalanceSnapshotService {
     });
   }
 
-  async getAvailableBalance(accountId: string): Promise<number> {
-    const snapshot = await this.getCurrentBalance(accountId);
-    return snapshot ? snapshot.available : 0;
+  async getAvailableBalanceAndLock(
+    queryRunner: QueryRunner,
+    accountId: string,
+  ): Promise<BalanceSnapshot | null> {
+    const snapshot = await queryRunner.manager.findOne(BalanceSnapshot, {
+      where: { accountId },
+      order: { version: 'DESC' },
+      // lock: { mode: 'pessimistic_read' },
+    });
+
+    return snapshot;
   }
 }

@@ -39,19 +39,6 @@ export class IdempotencyService {
     });
   }
 
-  // queryRunner,
-  //       body.idempotencyKey,
-  //       hash || 'request-hash',
-  //       {
-  //         status: 'COMPLETED',
-  //         transactionId: savedTransaction.id,
-  //         debitJournalId: debitJournal.id,
-  //         creditJournalId: creditJournal.id,
-  //       },
-  //       86400, // 24 horas
-  //       EntityType.TRANSACTION,
-  //       savedTransaction.id,
-
   async create(
     queryRunner: QueryRunner,
     options: CreateIdempotencyOptions,

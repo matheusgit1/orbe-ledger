@@ -20,6 +20,23 @@ import { Audit } from './audit.entity';
 import { Outbox } from './outbox.entity';
 import { Transaction } from './transaction.entity';
 
+export interface CreateJournalOptions {
+  ledgerId: string;
+  journalNumber: string;
+  type: JournalType;
+  description?: string;
+  reference?: string;
+  externalReference?: string;
+  correlationId?: string;
+  causationId?: string;
+  idempotencyKey?: string;
+  source: string;
+  createdBy?: string;
+  metadata?: Record<string, any>;
+  postedAt?: Date;
+  entries?: Entry[];
+}
+
 @Entity('journals')
 @Index(['journalNumber'])
 @Index(['correlationId'])
@@ -185,22 +202,7 @@ export class Journal {
     }
   }
 
-  static create(props: {
-    ledgerId: string;
-    journalNumber: string;
-    type: JournalType;
-    description?: string;
-    reference?: string;
-    externalReference?: string;
-    correlationId?: string;
-    causationId?: string;
-    idempotencyKey?: string;
-    source: string;
-    createdBy?: string;
-    metadata?: Record<string, any>;
-    postedAt?: Date;
-    entries?: Entry[];
-  }): Journal {
+  static create(props: CreateJournalOptions): Journal {
     const journal = new Journal();
     journal.ledgerId = props.ledgerId;
     journal.journalNumber = props.journalNumber;
@@ -226,5 +228,10 @@ export class Journal {
     if (status === JournalStatus.POSTED) {
       this.postedAt = new Date();
     }
+  }
+
+  setEntries(entries: Entry[]): void {
+    Entry.validateDebitAndCredits(entries);
+    this.entries = entries;
   }
 }
