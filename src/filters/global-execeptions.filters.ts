@@ -51,7 +51,12 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       }
     }
 
-    this.logger.error(`[${hash}] - global exception - ${errorType}: ${JSON.stringify(exception)}`);
+    this.logger.error(
+      `[${hash}] - global exception - ${errorType}: ${exception instanceof Error ? exception.message : JSON.stringify(exception)}`,
+    );
+    if (exception instanceof Error) {
+      this.logger.error(`[${hash}] - stack trace: ${exception.stack}`);
+    }
     response.status(status).json({
       success: false,
       error: {
