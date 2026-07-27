@@ -25,8 +25,6 @@ import {
 import { TransactionService } from 'src/core/services/transaction.service';
 import { EntityType } from 'src/infra/database/common/enums/idempotency.status';
 import { LimiteService } from 'src/core/services/limite.service';
-import { EntryService } from 'src/core/services/entry.service';
-import { BalanceSnapshotService } from 'src/core/services/balance-snapshot.service';
 import { AccountsService } from 'src/core/services/accounts.service';
 
 @Injectable()
@@ -36,7 +34,6 @@ export class PixService {
     @Inject(REQUEST) private readonly request: Request,
     private readonly idempotencyService: IdempotencyService,
     private readonly accountService: AccountsService,
-    private readonly balanceSnapshotService: BalanceSnapshotService,
     private readonly balanceService: BalanceService,
     private readonly journalService: JournalService,
     private readonly ledgerService: LedgerService,
@@ -44,7 +41,6 @@ export class PixService {
     private readonly transactionService: TransactionService,
     private readonly dataSource: DataSource,
     private readonly limiteService: LimiteService,
-    private readonly entryService: EntryService,
   ) {}
 
   private async getQueryRunner() {
@@ -72,40 +68,13 @@ export class PixService {
     const { hash, queryRunner } = await this.getQueryRunner();
 
     try {
-      const idempotency = await this.idempotencyService.findByKey(
-        body.idempotencyKey,
-      );
+      const idempotencyResult = await this.validateIdempotencyKey({
+        idempotencyKey: body.idempotencyKey,
+        requestId: hash,
+      });
 
-      if (idempotency) {
-        this.logger.log(
-          `[${hash}] idepotency already processed: ${body.idempotencyKey}`,
-        );
-
-        const transaction =
-          await this.transactionService.findTransactionByFilter({
-            correlationId: body.idempotencyKey,
-          });
-
-        if (!transaction) {
-          throw new Error('Transaction not found');
-        }
-
-        return {
-          status: transaction.status,
-          transactionId: transaction.id,
-          debitEntryId: transaction.journals
-            .map((j) => j.getDebitEntry().map((e) => e.id))
-            .join(','),
-          creditEntryId: transaction.journals
-            .map((j) => j.getCreditEntry().map((e) => e.id))
-            .join(','),
-          amount: transaction.amount,
-          payerAccount: transaction.originAccount.id,
-          receiverAccount: transaction.destinationAccount.id,
-          institutionType: 'SAME_INSTITUTION',
-          completedAt: transaction.completedAt,
-          idempotency: true,
-        };
+      if (idempotencyResult) {
+        return idempotencyResult;
       }
 
       const [payerAccount, receiverAccount] = await Promise.all([
@@ -171,49 +140,31 @@ export class PixService {
           source: 'PIX_SAME_INSTITUTION',
           createdBy: 'SYSTEM',
           metadata: {},
+          entries: [
+            {
+              accountId: payerAccount.id,
+              amount: body.amount,
+              side: EntrySide.DEBIT,
+              description: body.description,
+              currencyId: payerAccount.currencyId,
+              metadata: {},
+            },
+            {
+              accountId: receiverAccount.id,
+              amount: body.amount,
+              side: EntrySide.CREDIT,
+              description: body.description,
+              currencyId: receiverAccount.currencyId,
+              metadata: {},
+            },
+          ],
         },
-        [
-          {
-            accountId: payerAccount.id,
-            amount: body.amount,
-            side: EntrySide.DEBIT,
-            description: body.description,
-            currencyId: payerAccount.currencyId,
-            metadata: {},
-          },
-          {
-            accountId: receiverAccount.id,
-            amount: body.amount,
-            side: EntrySide.CREDIT,
-            description: body.description,
-            currencyId: receiverAccount.currencyId,
-            metadata: {},
-          },
-        ],
       );
 
       const registeredJournal = await this.journalService.registerJournal(
         queryRunner,
         hash,
         createdJournal,
-      );
-
-      console.log('registeredJournal', registeredJournal);
-
-      await this.balanceSnapshotService.updateBalance(
-        queryRunner,
-        registeredJournal,
-        payerAccount.balanceSnapshots,
-        registeredJournal.entries.find((e) => e.accountId === payerAccount.id)!,
-      );
-
-      await this.balanceSnapshotService.updateBalance(
-        queryRunner,
-        registeredJournal,
-        receiverAccount.balanceSnapshots,
-        registeredJournal.entries.find(
-          (e) => e.accountId === receiverAccount.id,
-        )!,
       );
 
       await this.auditService.createAudit(
@@ -497,5 +448,48 @@ export class PixService {
     ) {
       throw new Error(`Chave PIX inválida: ${pixKey}`);
     }
+  }
+
+  async validateIdempotencyKey(dto: {
+    idempotencyKey: string;
+    requestId: string;
+  }): Promise<any> {
+    const idempotency = await this.idempotencyService.findByKey(
+      dto.idempotencyKey,
+    );
+
+    if (idempotency) {
+      this.logger.log(
+        `[${dto.requestId}] idepotency already processed: ${dto.idempotencyKey}`,
+      );
+
+      const transaction = await this.transactionService.findTransactionByFilter(
+        {
+          correlationId: dto.idempotencyKey,
+        },
+      );
+
+      if (!transaction) {
+        throw new Error('Transaction not found');
+      }
+
+      return {
+        status: transaction.status,
+        transactionId: transaction.id,
+        debitEntryId: transaction.journals
+          .map((j) => j.getDebitEntry().map((e) => e.id))
+          .join(','),
+        creditEntryId: transaction.journals
+          .map((j) => j.getCreditEntry().map((e) => e.id))
+          .join(','),
+        amount: transaction.amount,
+        payerAccount: transaction.originAccount.id,
+        receiverAccount: transaction.destinationAccount.id,
+        institutionType: 'SAME_INSTITUTION',
+        completedAt: transaction.completedAt,
+        idempotency: true,
+      };
+    }
+    return false;
   }
 }

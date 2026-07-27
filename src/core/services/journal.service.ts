@@ -116,7 +116,11 @@ export class JournalService {
         },
       );
 
-      await this.createOutboxEvents(journal, savedJournal.entries, queryRunner);
+      await this.createOutboxEvents(
+        savedJournal,
+        savedJournal.entries,
+        queryRunner,
+      );
 
       const result = await this.findByIdWithQueryRunner(
         queryRunner,
@@ -882,8 +886,9 @@ export class JournalService {
 
   async createJournal(
     queryRunner: QueryRunner,
-    options: Omit<CreateJournalOptions, 'journalNumber' | 'entries'>,
-    entries?: Omit<CreateEntryProps, 'journalId' | 'sequence'>[],
+    options: Omit<CreateJournalOptions, 'journalNumber' | 'entries'> & {
+      entries?: Omit<CreateEntryProps, 'journalId' | 'sequence'>[];
+    },
   ): Promise<Journal> {
     const journal = Journal.create({
       ledgerId: options.ledgerId,
@@ -902,7 +907,7 @@ export class JournalService {
     });
     const saved = await this.saveJournal(queryRunner, journal);
     saved.setEntries(
-      entries?.map((entry, index) =>
+      options.entries?.map((entry, index) =>
         this.entryService.createEntry({
           ...entry,
           sequence: index + 1,
