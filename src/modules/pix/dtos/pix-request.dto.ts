@@ -21,7 +21,7 @@ export class PixRequestDto {
   @IsNumber()
   @ApiProperty({
     description: 'Valor da transferência',
-    example: 100.00,
+    example: 100.0,
   })
   amount: number;
 
@@ -38,7 +38,7 @@ export class PixRequestDto {
     description: 'Chave PIX (opcional)',
     example: '12345678901',
   })
-  pixKey?: string;
+  pixKey: string;
 
   @IsOptional()
   @IsString()
@@ -46,7 +46,7 @@ export class PixRequestDto {
     description: 'Descrição da transferência (opcional)',
     example: 'Transferência via PIX',
   })
-  description?: string;
+  description: string;
 
   @IsOptional()
   @ApiProperty({

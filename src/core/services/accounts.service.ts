@@ -4,6 +4,7 @@ import { Account } from '../../infra/database/entities/account.entity';
 import { In, Repository } from 'typeorm';
 import { QueryRunner } from 'typeorm/browser';
 import { BalanceSnapshot } from 'src/infra/database/entities/balance-snapshot.entity';
+import { Limit } from 'src/infra/database/entities/limit.entity';
 
 @Injectable()
 export class AccountsService {
@@ -25,6 +26,7 @@ export class AccountsService {
       relations: {
         balanceSnapshots: true,
         currency: true,
+        limits: true
       },
     });
     if (
@@ -36,6 +38,9 @@ export class AccountsService {
         account.currencyId,
       );
     }
+    // if(account && (!account.limits || account.limits === null)) {
+    //   account.limits = Limit.createInitial(account.id);
+    // }
     return account;
   }
 

@@ -17,7 +17,7 @@ import { Journal } from './journal.entity';
 @Index(['traceId'])
 @Index(['requestId'])
 export class Audit {
-  protected 
+  protected constructor() {}
   @PrimaryGeneratedColumn('uuid')
   id: string;
 

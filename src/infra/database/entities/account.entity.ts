@@ -126,8 +126,8 @@ export class Account {
   @OneToMany(() => Hold, (hold) => hold.account)
   holds: Hold[];
 
-  @OneToMany(() => Limit, (limit) => limit.account)
-  limits: Limit[];
+  @OneToOne(() => Limit, (limit) => limit.account)
+  limits: Limit;
 
   @Column({ type: 'uuid', name: 'institution_id', nullable: true })
   institutionId: string | null;

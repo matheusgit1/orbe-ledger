@@ -8,6 +8,17 @@ import {
 } from 'typeorm';
 import { IdempotencyStatus } from '../common/enums/idempotency.status';
 
+export interface CreateIdempotencyOptions {
+  key: string;
+  hash: string;
+  ttl: number;
+  entityType: string;
+  entityId: string;
+  request: Record<string, any>;
+  response?: Record<string, any>;
+  metadata?: Record<string, any>;
+}
+
 @Entity('idempotency')
 @Index(['key'], { unique: true })
 @Index(['expiresAt'])
@@ -22,8 +33,11 @@ export class Idempotency {
   @Column({ type: 'varchar', name: 'request_hash' })
   requestHash: string;
 
-  @Column({ type: 'jsonb' })
-  response: Record<string, any>;
+  @Column({ type: 'jsonb', nullable: true })
+  response?: Record<string, any>;
+
+  @Column({ type: 'jsonb', nullable: false })
+  request: Record<string, any>;
 
   @Column({ type: 'varchar', length: 50, enum: IdempotencyStatus })
   status: IdempotencyStatus; // COMPLETED, PROCESSING, FAILED
@@ -35,7 +49,7 @@ export class Idempotency {
   entityId: string | null;
 
   @Column({ type: 'jsonb', nullable: true })
-  metadata: Record<string, any>;
+  metadata?: Record<string, any>;
 
   @Column({ type: 'timestamp', name: 'expires_at' })
   expiresAt: Date;
@@ -49,6 +63,10 @@ export class Idempotency {
   // Métodos de domínio
   isExpired(): boolean {
     return new Date() > this.expiresAt;
+  }
+
+  isPending(): boolean {
+    return this.status === IdempotencyStatus.PENDING;
   }
 
   isCompleted(): boolean {
@@ -67,22 +85,25 @@ export class Idempotency {
     return this.isFailed() && !this.isExpired();
   }
 
-  markAsCompleted(response: Record<string, any>): void {
+  setAsCompleted(response: Record<string, any>): Idempotency {
     this.status = IdempotencyStatus.COMPLETED;
     this.response = response;
+    return this;
   }
 
-  markAsProcessing(): void {
+  setAsProcessing(): Idempotency {
     this.status = IdempotencyStatus.PROCESSING;
+    return this;
   }
 
-  markAsFailed(error: string): void {
+  setAsFailed(error: string): Idempotency {
     this.status = IdempotencyStatus.FAILED;
     this.metadata = {
       ...this.metadata,
       error,
       failedAt: new Date().toISOString(),
     };
+    return this;
   }
 
   // Validação
@@ -107,23 +128,17 @@ export class Idempotency {
   // Método para criar chave de idempotência
 
   // Método para criar registro de idempotência com entity
-  static create(
-    key: string,
-    hash: string,
-    data: Record<string, any>,
-    ttl: number,
-    entityType: string,
-    entityId: string,
-  ): Idempotency {
+  static create(options: CreateIdempotencyOptions): Idempotency {
     const idempotency = new Idempotency();
-    idempotency.key = key;
-    idempotency.requestHash = hash;
-    idempotency.response = data;
-    idempotency.status = IdempotencyStatus.COMPLETED;
-    idempotency.metadata = data;
-    idempotency.expiresAt = new Date(Date.now() + ttl * 1000);
-    idempotency.entityType = entityType;
-    idempotency.entityId = entityId;
+    idempotency.key = options.key;
+    idempotency.requestHash = options.hash;
+    idempotency.status = IdempotencyStatus.PENDING;
+    idempotency.metadata = options.metadata;
+    idempotency.expiresAt = new Date(Date.now() + options.ttl * 1000);
+    idempotency.entityType = options.entityType;
+    idempotency.entityId = options.entityId;
+    idempotency.request = options.request;
+    idempotency.response = options.response;
     return idempotency;
   }
 

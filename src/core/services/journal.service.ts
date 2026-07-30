@@ -49,14 +49,10 @@ export class JournalService {
     private readonly journalRepository: Repository<Journal>,
     @InjectRepository(Entry)
     private readonly entryRepository: Repository<Entry>,
-    @InjectRepository(BalanceSnapshot)
-    private readonly dataSource: DataSource,
     private readonly balanceSnapshotService: BalanceSnapshotService,
     private readonly outboxService: OutboxService,
     private readonly auditService: AuditService,
     private readonly entryService: EntryService,
-    private readonly accountService: AccountsService,
-    private readonly currencyService: CurrencyService,
   ) {}
 
   async registerJournal(

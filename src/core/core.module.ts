@@ -14,6 +14,8 @@ import { TransactionService } from './services/transaction.service';
 import { EntryService } from './services/entry.service';
 import { CurrencyService } from './services/currency.service';
 import { LimiteService } from './services/limite.service';
+import { RulesModule } from './rules/rules.module';
+import { LedgerPosting } from './posting/ledger.posting';
 
 const services = [
   LedgerService,
@@ -30,6 +32,7 @@ const services = [
   EntryService,
   CurrencyService,
   LimiteService,
+  LedgerPosting,
 ];
 
 @Module({

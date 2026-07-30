@@ -43,7 +43,16 @@ export class TransactionService {
       },
     });
     const saved = await this.transactionRepository.save(transaction);
-    return saved;
+    return await this.transactionRepository.findOne({
+      where: {
+        id: saved.id,
+      },
+      relations: {
+        journals: true,
+        originAccount: true,
+        destinationAccount: true,
+      },
+    });
   }
 
   async saveTransaction(queryRunner: QueryRunner, transaction: Transaction) {
