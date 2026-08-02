@@ -12,6 +12,16 @@ import {
 import { SagaStepStatus, SagaStepType } from '../common/enums/saga.enum';
 import { Saga } from './saga.entity';
 
+export interface CreateStepsSagaOptions {
+  name: string;
+  sagaId: string;
+  step: number;
+  type: SagaStepType;
+  inputData?: Record<string, any>;
+  compensation?: Record<string, any>;
+  maxRetries?: number;
+  timeoutSeconds?: number;
+}
 
 @Entity('saga_steps')
 @Index(['sagaId', 'step'], { unique: true })
@@ -20,6 +30,9 @@ import { Saga } from './saga.entity';
 export class SagaStep {
   @PrimaryGeneratedColumn('uuid')
   id: string;
+
+  @Column({ type: 'varchar', length: 255 })
+  name: string;
 
   @Column({ type: 'uuid', name: 'saga_id' })
   sagaId: string;
@@ -181,5 +194,23 @@ export class SagaStep {
     if (this.timeoutSeconds <= 0) {
       throw new Error('Timeout seconds must be greater than 0');
     }
+  }
+
+  // Método estático para criar um SagaStep
+  static create(dto: CreateStepsSagaOptions): SagaStep {
+    const sagaStep = new SagaStep();
+    sagaStep.name = dto.name;
+    sagaStep.sagaId = dto.sagaId;
+    sagaStep.step = dto.step;
+    sagaStep.type = dto.type;
+    sagaStep.status = SagaStepStatus.PENDING;
+    sagaStep.inputData = dto.inputData || {};
+    sagaStep.compensation = dto.compensation || {};
+    sagaStep.maxRetries = dto.maxRetries || 3;
+    sagaStep.timeoutSeconds = dto.timeoutSeconds || 30;
+    sagaStep.retryCount = 0;
+
+    sagaStep.validate();
+    return sagaStep;
   }
 }

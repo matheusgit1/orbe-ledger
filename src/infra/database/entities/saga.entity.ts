@@ -10,7 +10,7 @@ import {
   Index,
 } from 'typeorm';
 
-import { SagaStep } from './saga-step.entity';
+import { CreateStepsSagaOptions, SagaStep } from './saga-step.entity';
 import {
   SagaStatus,
   SagaStepStatus,
@@ -186,7 +186,7 @@ export class Saga {
   static createFromTransaction(
     transaction: Transaction,
     workflowId: string,
-    steps: Partial<SagaStep>[],
+    steps: Partial<CreateStepsSagaOptions>[],
     contextData?: Record<string, any>,
   ): Saga {
     const saga = new Saga();

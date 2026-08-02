@@ -12,7 +12,7 @@ export interface CreateTransactionOptions {
   amount: number;
   currencyId: string;
   originAccountId: string;
-  destinationAccountId: string;
+  destinationAccountId?: string;
   correlationId?: string;
   externalId?: string;
   workflowId?: string;
@@ -43,7 +43,8 @@ export class TransactionService {
       },
     });
     const saved = await this.transactionRepository.save(transaction);
-    return await this.transactionRepository.findOne({
+
+    return await this.transactionRepository.findOneOrFail({
       where: {
         id: saved.id,
       },

@@ -54,8 +54,8 @@ export class Transaction {
   @Column({ type: 'uuid', name: 'origin_account_id' })
   originAccountId: string;
 
-  @Column({ type: 'uuid', name: 'destination_account_id' })
-  destinationAccountId: string;
+  @Column({ type: 'uuid', nullable: true, name: 'destination_account_id' })
+  destinationAccountId?: string;
 
   @Column({ type: 'varchar', nullable: true, name: 'correlation_id' })
   correlationId?: string;
@@ -179,7 +179,7 @@ export class Transaction {
     amount: number;
     currencyId: string;
     originAccountId: string;
-    destinationAccountId: string;
+    destinationAccountId?: string;
     correlationId?: string;
     externalId?: string;
     workflowId?: string;

@@ -76,8 +76,33 @@ export class PixService {
     }
   }
 
-  async pixExternal() {
-    return this.pixExternalUsecase.handler();
+  async pixExternal(body: PixRequestDto) {
+    const { hash, queryRunner } = await this.getQueryRunner();
+
+    try {
+      const [payerAccount] = await Promise.all([
+        this.accountService.findById(queryRunner, body.originAccountId),
+      ]);
+
+      if (!payerAccount) {
+        throw new Error(`Conta origem ${body.originAccountId} não encontrada`);
+      }
+
+      await this.pixExternalUsecase.handler({
+        accountOrigin: payerAccount,
+        idempotencyKey: body.idempotencyKey,
+        requestId: hash,
+        amount: body.amount,
+        pixKey: body.pixKey,
+        description: body.description,
+      });
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+      this.logger.error(`[${hash}] Erro na transferência PIX: ${err.message}`);
+      throw err;
+    } finally {
+      await queryRunner.release();
+    }
   }
 
   private buildResponse(data: any) {

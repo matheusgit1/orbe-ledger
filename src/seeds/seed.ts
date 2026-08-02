@@ -311,6 +311,31 @@ const createReserveAccounts = async (
       name: 'Reserva PSP Recebedor',
       description: 'Conta de reserva do PSP recebedor para liquidação SPI',
     },
+    {
+      code: 'PIX-OUT-PENDING',
+      name: 'PIX OUT Pending',
+      description: 'Cliente debitado, aguardando envio ao SPI',
+    },
+    {
+      code: 'PIX-OUT-SETTLEMENT',
+      name: 'PIX OUT Settlement',
+      description: 'Em liquidação no SPI',
+    },
+    {
+      code: 'PIX-IN-SETTLEMENT',
+      name: 'PIX IN Settlement',
+      description: 'Liquidação recebida do SPI',
+    },
+    {
+      code: 'PIX-IN-PENDING',
+      name: 'PIX IN Pending',
+      description: 'Aguardando crédito ao cliente',
+    },
+    {
+      code: 'SPI-RESERVE',
+      name: 'SPI Reserve',
+      description: 'Conta de liquidação da instituição',
+    },
   ];
 
   const reserveAccountIds: Record<string, string> = {};

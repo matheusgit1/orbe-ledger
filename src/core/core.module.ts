@@ -16,8 +16,12 @@ import { CurrencyService } from './services/currency.service';
 import { LimiteService } from './services/limite.service';
 import { RulesModule } from './rules/rules.module';
 import { LedgerPosting } from './posting/ledger.posting';
+import { SagaService } from './services/saga.service';
+import { SagaStepService } from './services/saga-step.service';
+import { LedgerHealth } from './health/ledger.health';
 
 const services = [
+  LedgerHealth,
   LedgerService,
   JournalService,
   BalanceSnapshotService,
@@ -33,6 +37,8 @@ const services = [
   CurrencyService,
   LimiteService,
   LedgerPosting,
+  SagaService,
+  SagaStepService
 ];
 
 @Module({

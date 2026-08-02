@@ -177,7 +177,7 @@ export class PixInternalUsecase {
       );
 
       return resp;
-    } catch (err) {
+    } catch (err: any) {
       await queryRunner.rollbackTransaction();
       this.logger.error(
         `[${body.requestId}] Erro na transferência PIX: ${err.message}`,

@@ -133,6 +133,27 @@ export class TransferRules {
     }
   }
 
+  async validatePayer(dto: { payerAccount: Account; amount: number }) {
+    if (!dto.payerAccount) {
+      throw new Error(`Conta origem não encontrada`);
+    }
+
+    await Promise.all([
+      this.validatePayerAccount(dto.payerAccount),
+      this.validateLimits(dto.payerAccount, dto.amount),
+    ]);
+
+    const availableBalance = dto.payerAccount.balanceSnapshots.available;
+
+    if (availableBalance < dto.amount) {
+      throw new Error(
+        `Saldo insuficiente. Disponível: ${availableBalance}, Necessário: ${dto.amount}`,
+      );
+    }
+
+    return { payerAccount: dto.payerAccount };
+  }
+
   async validate(dto: {
     payerAccount: Account;
     receiverAccount: Account;

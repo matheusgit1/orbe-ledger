@@ -12,7 +12,7 @@ export class PixController {
   }
 
   @Post('transfer-external')
-  async transferExternal() {
-    return await this.pixService.pixExternal();
+  async transferExternal(@Body() body: PixRequestDto) {
+    return await this.pixService.pixExternal(body);
   }
 }

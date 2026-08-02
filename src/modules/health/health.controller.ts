@@ -8,7 +8,7 @@ export class HealthController {
   constructor(private readonly healthService: HealthService) {}
 
   @Get('check')
-  check() {
-    return { status: 'ok' };
+  async check() {
+    return await this.healthService.check();
   }
 }

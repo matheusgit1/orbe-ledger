@@ -12,6 +12,7 @@ export enum TransactionStatus {
 export enum TransactionType {
   TRANSFER = 'TRANSFER',
   PIX = 'PIX',
+  PIX_EXTERNAL = 'PIX_EXTERNAL',
   TED = 'TED',
   DOC = 'DOC',
   BOLETO = 'BOLETO',
