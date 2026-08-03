@@ -227,7 +227,7 @@ export class LedgerPosting {
         externalReference: undefined,
         correlationId: dto.transaction.id,
         causationId: dto.idempotencyKey,
-        source: 'TICKET',
+        source: 'TED',
         createdBy: 'SYSTEM',
         metadata: {},
         entries: [
@@ -235,7 +235,7 @@ export class LedgerPosting {
             accountId: dto.payerAccount.id,
             amount: dto.amount,
             side: EntrySide.DEBIT,
-            description: 'liquidação via boleto',
+            description: 'liquidação via ted',
             currencyId: dto.payerAccount.currencyId,
             metadata: {},
           },
@@ -243,7 +243,7 @@ export class LedgerPosting {
             accountId: dto.receiverAccount.id,
             amount: dto.amount - dto.tax,
             side: EntrySide.CREDIT,
-            description: 'deposito via boleto',
+            description: 'deposito via ted',
             currencyId: dto.receiverAccount.currencyId,
             metadata: {},
           },
@@ -251,7 +251,7 @@ export class LedgerPosting {
             accountId: dto.revenueAccount.id,
             amount: parseFloat(Number(dto.tax).toFixed(10)),
             side: EntrySide.CREDIT,
-            description: 'taxa via boleto',
+            description: 'taxa via ted',
             currencyId: dto.receiverAccount.currencyId,
             metadata: {},
           },
@@ -282,6 +282,70 @@ export class LedgerPosting {
           .getCreditEntry()
           .map((e) => e.id)
           .join(','),
+      },
+    );
+
+    return await this.journalService.registerJournal(
+      queryRunner,
+      dto.requestId,
+      createdJournal,
+    );
+  }
+
+  async postDoc(
+    queryRunner: QueryRunner,
+    dto: {
+      requestId: string;
+      ledger: Ledger;
+      transaction: Transaction;
+      description: string;
+      idempotencyKey: string;
+      amount: number;
+      payerAccount: Account;
+      receiverAccount: Account;
+      revenueAccount: Account;
+      tax: number;
+    },
+  ) {
+    const createdJournal = await this.journalService.createJournal(
+      queryRunner,
+      {
+        ledgerId: dto.ledger.id,
+        type: JournalType.DOC,
+        description: dto.description,
+        reference: undefined,
+        externalReference: undefined,
+        correlationId: dto.transaction.id,
+        causationId: dto.idempotencyKey,
+        source: 'DOC',
+        createdBy: 'SYSTEM',
+        metadata: {},
+        entries: [
+          {
+            accountId: dto.payerAccount.id,
+            amount: dto.amount,
+            side: EntrySide.DEBIT,
+            description: 'liquidação via doc',
+            currencyId: dto.payerAccount.currencyId,
+            metadata: {},
+          },
+          {
+            accountId: dto.receiverAccount.id,
+            amount: dto.amount - dto.tax,
+            side: EntrySide.CREDIT,
+            description: 'deposito via doc',
+            currencyId: dto.receiverAccount.currencyId,
+            metadata: {},
+          },
+          {
+            accountId: dto.revenueAccount.id,
+            amount: parseFloat(Number(dto.tax).toFixed(10)),
+            side: EntrySide.CREDIT,
+            description: 'taxa via doc',
+            currencyId: dto.receiverAccount.currencyId,
+            metadata: {},
+          },
+        ],
       },
     );
 
