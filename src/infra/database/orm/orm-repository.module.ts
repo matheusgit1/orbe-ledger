@@ -19,7 +19,8 @@ import { Reconciliation } from '../entities/reconciliation.entity';
 import { SagaStep } from '../entities/saga-step.entity';
 import { Saga } from '../entities/saga.entity';
 import { Transaction } from '../entities/transaction.entity';
-import { SagaService } from 'src/core/services/saga.service';
+import { Service } from '../entities/service.entity';
+import { Tax } from '../entities/tax.entity';
 
 @Module({
   imports: [
@@ -43,6 +44,8 @@ import { SagaService } from 'src/core/services/saga.service';
       SagaStep,
       Saga,
       Transaction,
+      Service,
+      Tax,
     ]),
   ],
   providers: [],

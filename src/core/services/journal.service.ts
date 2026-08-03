@@ -912,6 +912,7 @@ export class JournalService {
         }),
       ) || [],
     );
+
     return saved;
   }
 

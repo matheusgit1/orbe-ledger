@@ -8,8 +8,8 @@ import { ResponseInterceptor } from '../../interceptors/response.interceptor';
 import { TracingMiddleware } from '../../middlewares/tracing.middleware';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { HealthModule } from '../health/health.module';
-import { CoreModule } from 'src/core/core.module';
 import { PixModule } from '../pix/pix.module';
+import { DepositsModule } from '../deposits/deposits.module';
 
 @Module({
   imports: [
@@ -19,6 +19,7 @@ import { PixModule } from '../pix/pix.module';
     HealthModule,
     // MovementsModule,
     PixModule,
+    DepositsModule,
   ],
   controllers: [],
   providers: [

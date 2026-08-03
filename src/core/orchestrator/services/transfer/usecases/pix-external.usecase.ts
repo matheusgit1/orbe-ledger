@@ -76,18 +76,6 @@ export class PixExternalUsecase {
         },
       });
 
-      /**steps
-       *PIX_OUT_PENDING
-       *PIX_OUT_SENT
-       *PIX_OUT_CONFIRMED
-       *PIX_IN_PENDING
-       *PIX_IN_CONFIRMED
-       *SPI_SETTLEMENT
-       *BACEN_RESERVE
-       *CLEARING
-       *SETTLEMENT_PENDING
-       *SETTLEMENT_COMPLETED
-       */
       const createSage = await this.sagaService.createSaga({
         transaction: savedTransaction,
         steps: [
