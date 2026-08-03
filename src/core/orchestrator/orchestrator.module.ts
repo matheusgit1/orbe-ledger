@@ -4,6 +4,7 @@ import { PixInternalUsecase } from './services/transfer/usecases/pix-internal.us
 import { CoreModule } from '../core.module';
 import { PixExternalUsecase } from './services/transfer/usecases/pix-external.usecase';
 import { TicketUsecase } from './services/deposits/usecases/ticket.usecase';
+import { TedUsecase } from './services/deposits/usecases/ted.usecase';
 
 const services = [
   /**PIX**/
@@ -11,6 +12,7 @@ const services = [
   PixExternalUsecase,
   /**DEPOSITS */
   TicketUsecase,
+  TedUsecase
 ];
 
 @Module({

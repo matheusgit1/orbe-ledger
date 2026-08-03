@@ -9,6 +9,8 @@ import { TicketUsecase } from 'src/core/orchestrator/services/deposits/usecases/
 import { LedgerCode } from 'src/infra/database/common/enums/ledger.enum';
 import { ServiceService } from 'src/core/services/service.service';
 import { FeeService } from 'src/core/services/fee.service';
+import { TedDepositDto } from './dtos/ted-deposit.dto';
+import { TedUsecase } from 'src/core/orchestrator/services/deposits/usecases/ted.usecase';
 
 @Injectable()
 export class DepositsService {
@@ -16,10 +18,10 @@ export class DepositsService {
   constructor(
     @Inject(REQUEST)
     private request: Request,
-    private readonly ormService: OrmService,
     private readonly accountService: AccountsService,
     private readonly ledgerService: LedgerService,
     private readonly ticketUsecase: TicketUsecase,
+    private readonly tedusecase: TedUsecase,
     private readonly serviceService: ServiceService,
     private readonly feeService: FeeService,
   ) {}
@@ -37,7 +39,7 @@ export class DepositsService {
         this.accountService.findByNumber(dto.account),
         this.accountService.findByCode('BOLETO-SETTLEMENT'),
         this.ledgerService.getLedgerByCode(LedgerCode.MAIN),
-        this.serviceService.getServiceByCode('SRV-TED'),
+        this.serviceService.getServiceByCode('SRV-BOLETO'),
         this.accountService.findByCode('REVENUE-BOLETO'),
       ]);
 
@@ -53,18 +55,58 @@ export class DepositsService {
         service,
         dto.amount,
       );
-      console.log(
-        'service: ',
+
+      const response = await this.ticketUsecase.handler({
+        receiverAccount: account,
+        payerAccount: ticketTechnicalAccount,
+        revenueAccount: ticketRevenueAccount,
+        ledger,
         service,
-        'technicalAccountRevenue: ',
-        technicalAccountRevenue,
+        idempotencyKey: dto.idempotencyKey,
+        requestId: hash,
+        amount: dto.amount,
+        tax: technicalAccountRevenue,
+      });
+      return response;
+    } catch (err) {
+      this.logger.error(
+        `[${hash}] Erro na transferência PIX: ${JSON.stringify(err)}`,
+      );
+      throw err;
+    }
+  }
+
+  async createTed(dto: TedDepositDto) {
+    const { hash } = this.request;
+    try {
+      const [
+        account,
+        ticketTechnicalAccount,
+        ledger,
+        service,
+        ticketRevenueAccount,
+      ] = await Promise.all([
+        this.accountService.findByNumber(dto.account),
+        this.accountService.findByCode('DOC-SETTLEMENT'),
+        this.ledgerService.getLedgerByCode(LedgerCode.MAIN),
+        this.serviceService.getServiceByCode('SRV-BOLETO'),
+        this.accountService.findByCode('REVENUE-DOC'),
+      ]);
+
+      if (!account) {
+        throw new Error('Conta não encontrada');
+      }
+
+      if (!ticketTechnicalAccount) {
+        throw new Error('Conta técnica não encontrada');
+      }
+
+      const technicalAccountRevenue = this.feeService.calculateNetAmount(
+        service,
+        dto.amount,
       );
 
-      console.log(
-        dto.amount,
-        technicalAccountRevenue,
-      );
-      const response = await this.ticketUsecase.handler({
+      const response = await this.tedusecase.handler({
         receiverAccount: account,
         payerAccount: ticketTechnicalAccount,
         revenueAccount: ticketRevenueAccount,

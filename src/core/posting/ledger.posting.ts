@@ -127,10 +127,96 @@ export class LedgerPosting {
       tax: number;
     },
   ) {
-    console.log('debitos e creditos');
-    console.log('amount: ', dto.amount);
-    console.log('tax: ', dto.tax);
-    console.log('valor final: ', dto.amount - dto.tax);
+    const createdJournal = await this.journalService.createJournal(
+      queryRunner,
+      {
+        ledgerId: dto.ledger.id,
+        type: JournalType.SETTLEMENT,
+        description: dto.description,
+        reference: undefined,
+        externalReference: undefined,
+        correlationId: dto.transaction.id,
+        causationId: dto.idempotencyKey,
+        source: 'TICKET',
+        createdBy: 'SYSTEM',
+        metadata: {},
+        entries: [
+          {
+            accountId: dto.payerAccount.id,
+            amount: dto.amount,
+            side: EntrySide.DEBIT,
+            description: 'liquidação via boleto',
+            currencyId: dto.payerAccount.currencyId,
+            metadata: {},
+          },
+          {
+            accountId: dto.receiverAccount.id,
+            amount: dto.amount - dto.tax,
+            side: EntrySide.CREDIT,
+            description: 'deposito via boleto',
+            currencyId: dto.receiverAccount.currencyId,
+            metadata: {},
+          },
+          {
+            accountId: dto.revenueAccount.id,
+            amount: parseFloat(Number(dto.tax).toFixed(10)),
+            side: EntrySide.CREDIT,
+            description: 'taxa via boleto',
+            currencyId: dto.receiverAccount.currencyId,
+            metadata: {},
+          },
+        ],
+      },
+    );
+
+    await this.auditService.createAudit(
+      AuditEntity.JOURNAL,
+      createdJournal.id,
+      AuditAction.CREATE,
+      'SYSTEM',
+      dto.requestId,
+      {
+        amount: dto.amount,
+        payer: dto.payerAccount.id,
+        receiver: dto.receiverAccount.id,
+        idempotencyKey: dto.idempotencyKey,
+      },
+      {
+        transactionId: dto.transaction.id,
+        status: 'PENDING',
+        debitEntryId: createdJournal
+          .getDebitEntry()
+          .map((e) => e.id)
+          .join(','),
+        creditEntryId: createdJournal
+          .getCreditEntry()
+          .map((e) => e.id)
+          .join(','),
+      },
+    );
+
+    return await this.journalService.registerJournal(
+      queryRunner,
+      dto.requestId,
+      createdJournal,
+    );
+  }
+
+  async postTed(
+    queryRunner: QueryRunner,
+    dto: {
+      requestId: string;
+      ledger: Ledger;
+      transaction: Transaction;
+      description: string;
+      idempotencyKey: string;
+      amount: number;
+      payerAccount: Account;
+      receiverAccount: Account;
+      revenueAccount: Account;
+      tax: number;
+    },
+  ) {
     const createdJournal = await this.journalService.createJournal(
       queryRunner,
       {

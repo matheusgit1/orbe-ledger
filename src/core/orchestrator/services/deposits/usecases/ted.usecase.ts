@@ -15,8 +15,8 @@ import { Transaction } from 'src/infra/database/entities/transaction.entity';
 import { OrmService } from 'src/infra/database/orm/orm.service';
 
 @Injectable()
-export class TicketUsecase {
-  private logger = new Logger(TicketUsecase.name);
+export class TedUsecase {
+  private logger = new Logger(TedUsecase.name);
   constructor(
     private ormService: OrmService,
     private accountService: AccountsService,
@@ -50,7 +50,7 @@ export class TicketUsecase {
       });
 
       const savedTransaction = await this.transactionService.createTransaction({
-        type: TransactionType.TICKET,
+        type: TransactionType.TED,
         amount: body.amount,
         currencyId: body.receiverAccount.currencyId,
         originAccountId: body.payerAccount.id,
@@ -59,7 +59,7 @@ export class TicketUsecase {
         externalId: body.idempotencyKey,
         metadata: {
           pixKey: body.idempotencyKey,
-          description: 'TICKET Settlemente',
+          description: 'TED Settlemente',
           institutionType: 'CROSS INSTITUTION',
           startedAt: new Date().toISOString(),
           data: body,
@@ -72,16 +72,16 @@ export class TicketUsecase {
           key: body.idempotencyKey,
           hash: body.requestId,
           request: { ...body },
-          metadata: { created_by: 'SYTEM', type: 'TICKET' },
+          metadata: { created_by: 'SYTEM', type: 'TED' },
           ttl: 86400,
           entityType: EntityType.TRANSACTION,
           entityId: savedTransaction.id,
         }));
 
-      const journal = await this.ledgerPostingSerive.postTicket(queryRunner, {
+      const journal = await this.ledgerPostingSerive.postTed(queryRunner, {
         ledger: body.ledger,
         transaction: savedTransaction,
-        description: 'Liquidação via boleto',
+        description: 'Liquidação via ted',
         idempotencyKey: body.idempotencyKey,
         amount: body.amount,
         tax: body.tax,
