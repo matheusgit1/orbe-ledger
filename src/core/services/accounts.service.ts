@@ -26,7 +26,7 @@ export class AccountsService {
       relations: {
         balanceSnapshots: true,
         currency: true,
-        limits: true
+        limits: true,
       },
     });
     if (
@@ -51,5 +51,9 @@ export class AccountsService {
     return await queryRunner.manager.find(Account, {
       where: { id: In(ids) },
     });
+  }
+
+  async countTotal(): Promise<number> {
+    return this.accountsRepository.count();
   }
 }

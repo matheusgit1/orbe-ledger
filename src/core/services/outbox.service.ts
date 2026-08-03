@@ -93,4 +93,10 @@ export class OutboxService {
       take: limit,
     });
   }
+
+  async countPending(): Promise<number> {
+    return this.outboxRepository.count({
+      where: { status: OutboxStatus.PENDING },
+    });
+  }
 }

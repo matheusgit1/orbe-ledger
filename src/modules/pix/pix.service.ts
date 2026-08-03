@@ -69,7 +69,9 @@ export class PixService {
       return this.buildResponse(response);
     } catch (err) {
       await queryRunner.rollbackTransaction();
-      this.logger.error(`[${hash}] Erro na transferência PIX: ${err.message}`);
+      this.logger.error(
+        `[${hash}] Erro na transferência PIX: ${JSON.stringify(err)}`,
+      );
       throw err;
     } finally {
       await queryRunner.release();
@@ -98,7 +100,9 @@ export class PixService {
       });
     } catch (err) {
       await queryRunner.rollbackTransaction();
-      this.logger.error(`[${hash}] Erro na transferência PIX: ${err.message}`);
+      this.logger.error(
+        `[${hash}] Erro na transferência PIX: ${JSON.stringify(err)}`,
+      );
       throw err;
     } finally {
       await queryRunner.release();

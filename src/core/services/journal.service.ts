@@ -921,4 +921,91 @@ export class JournalService {
   ): Promise<Journal> {
     return await queryRunner.manager.save(Journal, journal);
   }
+
+  async validateJournalConsistency(): Promise<{
+    difference: number;
+    isBalanced: boolean;
+    movementsByType: Record<
+      string,
+      { debit: number; credit: number; difference: number }
+    >;
+  }> {
+    const debitCreditTotals = await this.entryRepository
+      .createQueryBuilder('entry')
+      .select('entry.side', 'side')
+      .addSelect('SUM(entry.amount)', 'total')
+      .innerJoin('entry.journal', 'journal')
+      .where('journal.status = :status', { status: JournalStatus.POSTED })
+      .groupBy('entry.side')
+      .getRawMany();
+
+    let totalDebit = 0;
+    let totalCredit = 0;
+
+    for (const result of debitCreditTotals) {
+      if (result.side === EntrySide.DEBIT) {
+        totalDebit = parseFloat(result.total || '0');
+      } else if (result.side === EntrySide.CREDIT) {
+        totalCredit = parseFloat(result.total || '0');
+      }
+    }
+
+    const difference = Math.abs(totalDebit - totalCredit);
+    const isBalanced = difference < 0.01;
+
+    const movementsByType = await this.journalRepository
+      .createQueryBuilder('journal')
+      .select('journal.type', 'type')
+      .addSelect(
+        'SUM(CASE WHEN entry.side = :debit THEN entry.amount ELSE 0 END)',
+        'debit',
+      )
+      .addSelect(
+        'SUM(CASE WHEN entry.side = :credit THEN entry.amount ELSE 0 END)',
+        'credit',
+      )
+      .innerJoin('journal.entries', 'entry')
+      .where('journal.status = :status', { status: JournalStatus.POSTED })
+      .groupBy('journal.type')
+      .setParameters({ debit: EntrySide.DEBIT, credit: EntrySide.CREDIT })
+      .getRawMany();
+
+    const movementsByTypeMap: Record<
+      string,
+      { debit: number; credit: number; difference: number }
+    > = {};
+    for (const movement of movementsByType) {
+      const debit = parseFloat(movement.debit || '0');
+      const credit = parseFloat(movement.credit || '0');
+      movementsByTypeMap[movement.type] = {
+        debit,
+        credit,
+        difference: Math.abs(debit - credit),
+      };
+    }
+
+    return {
+      difference,
+      isBalanced,
+      movementsByType: movementsByTypeMap,
+    };
+  }
+
+  async getLastJournal(): Promise<{
+    journalNumber: string;
+    createdAt: Date;
+  } | null> {
+    const lastJournal = await this.journalRepository.findOne({
+      where: {
+        journalNumber: Like(`JNL-%-%`),
+      },
+      order: { journalNumber: 'DESC' },
+      select: {
+        journalNumber: true,
+        createdAt: true,
+      },
+    });
+
+    return lastJournal;
+  }
 }
