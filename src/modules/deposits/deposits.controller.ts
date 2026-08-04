@@ -2,6 +2,7 @@ import { Body, Controller, Post } from '@nestjs/common';
 import { DepositsService } from './deposits.service';
 import { TicketDepositDto } from './dtos/ticket-deposit.dto';
 import { TedDepositDto } from './dtos/ted-deposit.dto';
+import { DocDepositDto } from './dtos/doc-deposit.dto';
 
 @Controller('deposits')
 export class DepositsController {
@@ -12,8 +13,13 @@ export class DepositsController {
     return await this.depositsService.createTicket(dto);
   }
 
-    @Post('/ted')
+  @Post('/ted')
   async createTed(@Body() dto: TedDepositDto) {
     return await this.depositsService.createTed(dto);
+  }
+
+  @Post('/doc')
+  async createDoc(@Body() dto: DocDepositDto) {
+    return await this.depositsService.createDoc(dto);
   }
 }
