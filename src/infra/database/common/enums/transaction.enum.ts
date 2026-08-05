@@ -24,5 +24,6 @@ export enum TransactionType {
   ADJUSTMENT = 'ADJUSTMENT',
   CASHBACK = 'CASHBACK',
   SETTLEMENT = 'SETTLEMENT',
-  TICKET = 'TICKET'
+  TICKET = 'TICKET',
+  HOLD = 'HOLD'
 }

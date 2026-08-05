@@ -1,6 +1,5 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { TicketDepositDto } from './dtos/ticket-deposit.dto';
-import { OrmService } from 'src/infra/database/orm/orm.service';
 import type { Request } from 'express';
 import { REQUEST } from '@nestjs/core';
 import { AccountsService } from 'src/core/services/accounts.service';

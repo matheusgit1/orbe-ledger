@@ -62,23 +62,34 @@ export class JournalService {
   ): Promise<Journal> {
     try {
       this.logger.log(`[${hash}] Criando journal tipo ${journal.type}`);
+      console.log('journal: ', journal);
 
+      // Agrupar entries por accountId
+      const entriesByAccount = new Map<string, Entry[]>();
       for (const entry of journal.entries) {
+        if (!entriesByAccount.has(entry.accountId)) {
+          entriesByAccount.set(entry.accountId, []);
+        }
+        entriesByAccount.get(entry.accountId)!.push(entry);
+      }
+
+      // Atualizar balanços por conta usando updateByEntries
+      for (const [accountId, entries] of entriesByAccount) {
         const balanceSnapshot =
           await this.balanceSnapshotService.getAvailableBalanceAndLock(
             queryRunner,
-            entry.accountId,
+            accountId,
           );
         if (!balanceSnapshot) {
           throw new Error(
-            `Balance snapshot not found for account ${entry.accountId}`,
+            `Balance snapshot not found for account ${accountId}`,
           );
         }
-        await this.balanceSnapshotService.updateBalance(
+        await this.balanceSnapshotService.updateBalanceByEntries(
           queryRunner,
           journal,
           balanceSnapshot,
-          entry,
+          entries,
         );
       }
 
@@ -913,7 +924,7 @@ export class JournalService {
       ) || [],
     );
 
-    return saved;
+    return await this.saveJournal(queryRunner, saved);
   }
 
   async saveJournal(
@@ -1009,4 +1020,6 @@ export class JournalService {
 
     return lastJournal;
   }
+
+  async holdJournal() {}
 }

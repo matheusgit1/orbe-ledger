@@ -154,10 +154,29 @@ export class TransferRules {
     return { payerAccount: dto.payerAccount };
   }
 
+  private validateHolds(account: Account, amount: number, tax: number = 0) {
+    ///validar balance snapshot atual
+    //validar o quando esta em holds e validar se o amount + taxas respeitam regras (disponibilidade, se a conte perminte valores negativos no balanço, limite negativo)
+
+    const totalHolds = account.holds.reduce(
+      (acc, hold) => acc + (hold?.capturedAmount || 0),
+      0,
+    );
+
+    const totalAmount = amount + tax;
+
+    if (totalHolds + totalAmount > account.balanceSnapshots.available) {
+      throw new Error(
+        `Saldo insuficiente. Disponível: ${account.balanceSnapshots.available}, Necessário: ${totalAmount}`,
+      );
+    }
+  }
+
   async validate(dto: {
     payerAccount: Account;
     receiverAccount: Account;
     amount: number;
+    tax?: number;
   }) {
     if (!dto.receiverAccount) {
       throw new Error(`Conta destino não encontrada`);
@@ -174,6 +193,7 @@ export class TransferRules {
         receiverAccount: dto.receiverAccount,
         amount: dto.amount,
       }),
+      this.validateHolds(dto.payerAccount, dto.amount, dto.tax || 0),
     ]);
 
     const availableBalance = dto.payerAccount.balanceSnapshots.available;

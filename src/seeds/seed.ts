@@ -234,6 +234,7 @@ const createTestAccounts = async (
       allowNegative: false,
       isSystem: false,
       isLeaf: true,
+      accountNumber: '000001',
       metadata: { customerId: 'PAYER-001', document: '123.456.789-00' },
     });
     await accountRepo.save(payerAccount);
@@ -265,7 +266,7 @@ const createTestAccounts = async (
       description: 'Conta do cliente destinatário para testes',
       currencyId: brlCurrency.id,
       status: AccountStatus.ACTIVE,
-      accountNumber: '000001',
+      accountNumber: '000002',
       allowDebit: true,
       allowCredit: true,
       allowNegative: false,
@@ -362,6 +363,11 @@ const createReserveAccounts = async (
       description: 'Conta de liquidação em dinheiro',
     },
     {
+      code: 'HOLD-RESERVE',
+      name: 'Hold Reserve',
+      description: 'Conta de reserva para holds',
+    },
+    {
       code: 'REVENUE-PIX',
       name: 'Receita PIX',
       description: 'Conta de receita de taxas PIX',
@@ -385,6 +391,11 @@ const createReserveAccounts = async (
       code: 'REVENUE-WITHDRAW',
       name: 'Receita Saque',
       description: 'Conta de receita de taxas de saque',
+    },
+    {
+      code: 'REVENUE-HOLD',
+      name: 'Receita Hold',
+      description: 'Conta de receita de taxas de hold',
     },
   ];
 
@@ -525,6 +536,17 @@ const createServicesAndTaxes = async (dataSource: DataSource) => {
   });
   await taxRepo.save(adjustmentTax);
 
+  const holdTax = Tax.create({
+    code: 'TAX-HOLD',
+    name: 'Taxa Hold',
+    description: 'Taxa para holds',
+    amount: 0,
+    type: TaxType.FIXED,
+    minAmount: 0,
+    isActive: true,
+  });
+  await taxRepo.save(holdTax);
+
   console.log('✅ All Taxes created');
 
   // Create services
@@ -584,6 +606,13 @@ const createServicesAndTaxes = async (dataSource: DataSource) => {
       description: 'Serviço de ajustes manuais',
       type: ServicesAvailable.ADJUSTMENT,
       taxId: adjustmentTax.id,
+    },
+    {
+      code: 'SRV-HOLD',
+      name: 'Serviço Hold',
+      description: 'Serviço de hold',
+      type: ServicesAvailable.HOLD,
+      taxId: holdTax.id,
     },
   ];
 

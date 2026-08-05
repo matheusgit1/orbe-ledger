@@ -20,6 +20,7 @@ import { SagaStepService } from './services/saga-step.service';
 import { LedgerHealth } from './health/ledger.health';
 import { ServiceService } from './services/service.service';
 import { FeeService } from './services/fee.service';
+import { HoldService } from './services/hold.service';
 
 const services = [
   LedgerHealth,
@@ -42,6 +43,7 @@ const services = [
   SagaStepService,
   ServiceService,
   FeeService,
+  HoldService
 ];
 
 @Module({

@@ -1,0 +1,68 @@
+import { Inject, Injectable, Logger } from '@nestjs/common';
+import { REQUEST } from '@nestjs/core';
+import type { Request } from 'express';
+import { CreateHoldUsecase } from 'src/core/orchestrator/services/holds/create-hold.usecase';
+import { AccountsService } from 'src/core/services/accounts.service';
+import { FeeService } from 'src/core/services/fee.service';
+import { LedgerService } from 'src/core/services/ledger.service';
+import { ServiceService } from 'src/core/services/service.service';
+import { LedgerCode } from 'src/infra/database/common/enums/ledger.enum';
+
+@Injectable()
+export class HoldService {
+  private logger = new Logger(HoldService.name);
+  constructor(
+    @Inject(REQUEST)
+    private request: Request,
+    private readonly accountService: AccountsService,
+    private readonly ledgerService: LedgerService,
+    private readonly serviceService: ServiceService,
+    private readonly feeService: FeeService,
+    private readonly holdUsecase: CreateHoldUsecase,
+    // private feeCalculatorService: FeeCalculatorService
+  ) {}
+
+  async createHold(dto: { accountNumber: string; amount: number }) {
+    const { hash } = this.request;
+    try {
+      const [account, technicalAccount, revenueAccount, ledger, service] =
+        await Promise.all([
+          this.accountService.findByNumber(dto.accountNumber),
+          this.accountService.findByCode('HOLD-RESERVE'),
+          this.accountService.findByCode('REVENUE-HOLD'),
+          this.ledgerService.getLedgerByCode(LedgerCode.MAIN),
+          this.serviceService.getServiceByCode('SRV-HOLD'),
+        ]);
+      this.accountService.validateAccounts([
+        account,
+        technicalAccount,
+        revenueAccount,
+      ]);
+
+      console.log(
+        'contas: ',
+        account,
+        technicalAccount,
+        revenueAccount,
+        ledger,
+      );
+      const response = await this.holdUsecase.handler({
+        payerAccount: account,
+        receiverAccount: technicalAccount,
+        revenueAccount: revenueAccount,
+        idempotencyKey: hash,
+        requestId: hash,
+        amount: dto.amount,
+        tax: this.feeService.calculateNetAmount(service, dto.amount),
+        ledger: ledger,
+      });
+      this.logger.log(`[${hash}] Hold criado: ${JSON.stringify(response)}`);
+      return response;
+    } catch (err) {
+      this.logger.error(
+        `[${hash}] Erro na criação do hold: ${JSON.stringify(err)}`,
+      );
+      throw err;
+    }
+  }
+}

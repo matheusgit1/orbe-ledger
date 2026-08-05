@@ -26,6 +26,7 @@ export class AccountsService {
         balanceSnapshots: true,
         currency: true,
         limits: true,
+        holds: true
       },
     });
     if (
@@ -56,13 +57,14 @@ export class AccountsService {
     return this.accountsRepository.count();
   }
 
-  async findByNumber(number: string): Promise<Account | null> {
+  async findByNumber(number: string): Promise<Account> {
     const account = await this.accountsRepository.findOneOrFail({
       where: { accountNumber: number },
       relations: {
         balanceSnapshots: true,
         currency: true,
         limits: true,
+        holds: true
       },
     });
     if (
@@ -102,6 +104,22 @@ export class AccountsService {
     //   account.limits = Limit.createInitial(account.id);
     // }
     return account;
+  }
+
+  validateAccounts(accounts: Account[]) {
+    accounts.forEach((account) => {
+      if (!account) {
+        throw new Error('Account not found');
+      }
+
+      if (!account.isActive()) {
+        throw new Error('Account is not active');
+      }
+
+      if (!account.currency) {
+        throw new Error('Account currency not found');
+      }
+    });
   }
 
   private async generateAccountNumber(): Promise<string> {

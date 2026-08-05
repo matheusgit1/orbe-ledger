@@ -17,6 +17,14 @@ import { Transaction } from './transaction.entity';
 import { Journal } from './journal.entity';
 import { Entry } from './entry.entity';
 
+export interface CreateHoldOptions {
+  accountId: string;
+  amount: number;
+  currencyId: string;
+  reason: HoldReason;
+  expiresInSeconds?: number;
+  metadata?: Record<string, any>;
+}
 
 @Entity('holds')
 @Index(['accountId', 'status'])
@@ -68,13 +76,25 @@ export class Hold {
   @Column({ type: 'timestamp', nullable: true, name: 'released_at' })
   releasedAt: Date | null;
 
-  @Column({ type: 'decimal', precision: 15, scale: 2, nullable: true, name: 'captured_amount' })
+  @Column({
+    type: 'decimal',
+    precision: 15,
+    scale: 2,
+    nullable: true,
+    name: 'captured_amount',
+  })
   capturedAmount: number | null;
 
   @Column({ type: 'jsonb', nullable: true, name: 'release_reason' })
   releaseReason: Record<string, any> | null;
 
-  @Column({ type: 'decimal', precision: 10, scale: 6, default: 1, name: 'exchange_rate' })
+  @Column({
+    type: 'decimal',
+    precision: 10,
+    scale: 6,
+    default: 1,
+    name: 'exchange_rate',
+  })
   exchangeRate: number;
 
   @CreateDateColumn({ name: 'created_at' })
@@ -184,7 +204,9 @@ export class Hold {
     }
 
     if (this.amount <= 0) {
-      throw new Error(`Hold amount must be greater than 0, received ${this.amount}`);
+      throw new Error(
+        `Hold amount must be greater than 0, received ${this.amount}`,
+      );
     }
 
     if (!this.expiresAt) {
@@ -197,30 +219,28 @@ export class Hold {
 
     if (this.capturedAmount && this.capturedAmount > this.amount) {
       throw new Error(
-        `Captured amount (${this.capturedAmount}) cannot exceed hold amount (${this.amount})`
+        `Captured amount (${this.capturedAmount}) cannot exceed hold amount (${this.amount})`,
       );
     }
   }
 
-  // Método para criar hold
-  static create(
-    accountId: string,
-    amount: number,
-    currencyId: string,
-    reason: HoldReason,
-    expiresInSeconds: number = 300, // 5 minutos padrão
-    metadata?: Record<string, any> 
-  ): Hold {
+  static create(options: CreateHoldOptions): Hold {
     const hold = new Hold();
-    hold.accountId = accountId;
-    hold.amount = amount;
-    hold.currencyId = currencyId;
-    hold.reason = reason;
+    hold.accountId = options.accountId;
+    hold.amount = options.amount;
+    hold.currencyId = options.currencyId;
+    hold.reason = options.reason;
     hold.status = HoldStatus.ACTIVE;
-    hold.expiresAt = new Date(Date.now() + expiresInSeconds * 1000);
-    hold.metadata = metadata;
-    
+    hold.expiresAt = new Date(
+      Date.now() + (options.expiresInSeconds || 300) * 1000,
+    );
+    hold.metadata = options.metadata;
+
     hold.validate();
     return hold;
+  }
+
+  toDto() {
+    return Object.assign(this);
   }
 }

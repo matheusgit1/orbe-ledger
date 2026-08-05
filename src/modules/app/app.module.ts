@@ -10,6 +10,7 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
 import { HealthModule } from '../health/health.module';
 import { PixModule } from '../pix/pix.module';
 import { DepositsModule } from '../deposits/deposits.module';
+import { HoldModule } from '../hold/hold.module';
 
 @Module({
   imports: [
@@ -17,9 +18,9 @@ import { DepositsModule } from '../deposits/deposits.module';
     EventEmitterModule.forRoot({}),
     OrmModule,
     HealthModule,
-    // MovementsModule,
     PixModule,
     DepositsModule,
+    HoldModule,
   ],
   controllers: [],
   providers: [

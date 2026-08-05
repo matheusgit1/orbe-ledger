@@ -17,26 +17,24 @@ export class BalanceSnapshotService {
   ) {}
 
   /**
-   * Updates balance for an account after an entry
+   * Updates balance for an account after multiple entries
    */
-  async updateBalance(
+  async updateBalanceByEntries(
     queryRunner: QueryRunner,
     journal: Journal,
     balance: BalanceSnapshot,
-    entries: Entry,
+    entries: Entry[],
   ): Promise<BalanceSnapshot> {
     this.logger.log(
-      `Updating balance for account ${balance.accountId}, amount: ${balance.book}`,
+      `Updating balance for account ${balance.accountId} with ${entries.length} entries`,
     );
 
-
     console.log('snapshot antes: ', balance);
+    console.log('entries: ', entries);
 
-    balance.applyEntry(entries.amount, entries.side, entries.id, journal.id);
+    balance.updateByEntries(entries);
 
     console.log('snapshot depois: ', balance);
-
-    balance.validate();
 
     const savedSnapshot = await queryRunner.manager.save(balance);
 
@@ -54,8 +52,8 @@ export class BalanceSnapshotService {
   async getAvailableBalanceAndLock(
     queryRunner: QueryRunner,
     accountId: string,
-  ): Promise<BalanceSnapshot | null> {
-    const snapshot = await queryRunner.manager.findOne(BalanceSnapshot, {
+  ): Promise<BalanceSnapshot> {
+    const snapshot = await queryRunner.manager.findOneOrFail(BalanceSnapshot, {
       where: { accountId },
       order: { version: 'DESC' },
       // lock: { mode: 'pessimistic_read' },

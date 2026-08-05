@@ -12,7 +12,6 @@ import {
 import { Account } from './account.entity';
 import { Currency } from './currency.entity';
 import { BalanceType } from '../common/enums/balance.enum';
-import { EntrySide } from '../common/enums/journal.enum';
 import { Entry } from './entry.entity';
 
 @Entity('balance_snapshots')
@@ -90,54 +89,45 @@ export class BalanceSnapshot {
     }
   }
 
-  updateBalances(entry: Entry): void {
-    const amount = entry.amount;
+  updateByEntries(entries: Entry[]): void {
+    for (const entry of entries) {
+      const currentBook =
+        typeof this.book === 'string' ? parseFloat(this.book) : this.book;
+      const currentAvailable =
+        typeof this.available === 'string'
+          ? parseFloat(this.available)
+          : this.available;
+      const currentHeld =
+        typeof this.held === 'string' ? parseFloat(this.held) : this.held;
 
-    // Atualiza baseado no tipo de entrada
-    if (entry.side === EntrySide.DEBIT) {
-      this.book -= amount;
-      if (!entry.hold) {
-        this.available -= amount;
+      if (entry.isDebit()) {
+        if (entry.isHoldRelated()) {
+          this.available =
+            currentAvailable - parseFloat(entry.amount.toString());
+          this.held = currentHeld + parseFloat(entry.amount.toString());
+        } else {
+          this.book = currentBook - parseFloat(entry.amount.toString());
+          this.available =
+            currentAvailable - parseFloat(entry.amount.toString());
+        }
+      } else {
+        if (entry.isHoldRelated()) {
+          this.available =
+            currentAvailable + parseFloat(entry.amount.toString());
+          this.held = currentHeld - parseFloat(entry.amount.toString());
+        } else {
+          this.book = currentBook + parseFloat(entry.amount.toString());
+          this.available =
+            currentAvailable + parseFloat(entry.amount.toString());
+        }
       }
-    } else {
-      this.book += amount;
-      if (!entry.hold) {
-        this.available += amount;
-      }
+      // Atualiza referências
+      this.lastEntryId = entry.id;
+      this.lastJournalId = entry.journalId;
+      this.version += 1;
     }
 
-    // Atualiza referências
-    this.lastEntryId = entry.id;
-    this.lastJournalId = entry.journalId;
-    this.version += 1;
-  }
-
-  applyEntry(
-    amount: number,
-    side: EntrySide,
-    entryId?: string,
-    journalId?: string,
-  ): void {
-    const currentBook =
-      typeof this.book === 'string' ? parseFloat(this.book) : this.book;
-    const currentAvailable =
-      typeof this.available === 'string'
-        ? parseFloat(this.available)
-        : this.available;
-
-    if (side === EntrySide.DEBIT) {
-      this.book = currentBook - parseFloat(amount.toString());
-      this.available = currentAvailable - parseFloat(amount.toString());
-    } else {
-      this.book = currentBook + parseFloat(amount.toString());
-      this.available = currentAvailable + parseFloat(amount.toString());
-    }
-    if (entryId) {
-      this.lastEntryId = entryId;
-    }
-    if (journalId) {
-      this.lastJournalId = journalId;
-    }
+    this.validate();
   }
 
   // Validação de domínio

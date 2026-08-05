@@ -6,5 +6,6 @@ export enum ServicesAvailable {
   CASH = 'CASH',
   INTERNAL_TRANSFER = 'INTERNAL_TRANSFER',
   ADJUSTMENT = 'ADJUSTMENT',
+  HOLD = 'HOLD',
   DEFAULT = 'DEFAULT'
 }

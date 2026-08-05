@@ -52,6 +52,7 @@ export class TransactionService {
         journals: true,
         originAccount: true,
         destinationAccount: true,
+        currency: true
       },
     });
   }

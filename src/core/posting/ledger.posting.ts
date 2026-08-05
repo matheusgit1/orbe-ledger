@@ -13,6 +13,7 @@ import {
   AuditAction,
   AuditEntity,
 } from 'src/infra/database/common/enums/audit.enum';
+import { Hold } from 'src/infra/database/entities/hold.entity';
 
 @Injectable()
 export class LedgerPosting {
@@ -20,6 +21,100 @@ export class LedgerPosting {
     private readonly journalService: JournalService,
     private readonly auditService: AuditService,
   ) {}
+
+  async postHold(
+    queryRunner: QueryRunner,
+    dto: {
+      requestId: string;
+      ledger: Ledger;
+      transaction: Transaction;
+      description: string;
+      idempotencyKey: string;
+      amount: number;
+      payerAccount: Account;
+      receiverAccount: Account;
+      revenueAccount: Account;
+      tax: number;
+      hold: Hold;
+    },
+  ) {
+    const createdJournal = await this.journalService.createJournal(
+      queryRunner,
+      {
+        ledgerId: dto.ledger.id,
+        type: JournalType.HOLD,
+        description: dto.description,
+        reference: dto.idempotencyKey,
+        externalReference: dto.idempotencyKey,
+        correlationId: dto.transaction.id,
+        causationId: dto.idempotencyKey,
+        source: 'HOLD',
+        createdBy: 'SYSTEM',
+        metadata: {},
+        entries: [
+          {
+            accountId: dto.payerAccount.id,
+            amount: dto.amount,
+            side: EntrySide.DEBIT,
+            holdId: dto.hold.id,
+            description: dto.description,
+            currencyId: dto.payerAccount.currencyId,
+            metadata: {},
+          },
+          {
+            accountId: dto.receiverAccount.id,
+            amount: dto.amount - dto.tax,
+            side: EntrySide.CREDIT,
+            holdId: undefined,
+            description: dto.description,
+            currencyId: dto.receiverAccount.currencyId,
+            metadata: {},
+          },
+          {
+            accountId: dto.revenueAccount.id,
+            amount: parseFloat(Number(dto.tax).toFixed(2)),
+            side: EntrySide.CREDIT,
+            holdId: undefined,
+            description: dto.description,
+            currencyId: dto.receiverAccount.currencyId,
+            metadata: {},
+          },
+        ],
+      },
+    );
+
+    await this.auditService.createAudit(
+      AuditEntity.TRANSACTION,
+      dto.transaction.id,
+      AuditAction.UPDATE,
+      'SYSTEM',
+      dto.requestId,
+      {
+        amount: dto.amount,
+        payer: dto.payerAccount.id,
+        receiver: dto.receiverAccount.id,
+        idempotencyKey: dto.idempotencyKey,
+      },
+      {
+        transactionId: dto.transaction.id,
+        status: dto.transaction.status,
+        debitEntryId: createdJournal
+          .getDebitEntry()
+          .map((e) => e.id)
+          .join(','),
+        creditEntryId: createdJournal
+          .getCreditEntry()
+          .map((e) => e.id)
+          .join(','),
+      },
+    );
+
+    return await this.journalService.registerJournal(
+      queryRunner,
+      dto.requestId,
+      createdJournal,
+    );
+  }
 
   async postPixInternal(
     queryRunner: QueryRunner,
@@ -66,6 +161,7 @@ export class LedgerPosting {
             description: body.description,
             currencyId: payerAccount.currencyId,
             metadata: {},
+            holdId: undefined,
           },
           {
             accountId: receiverAccount.id,
@@ -74,6 +170,7 @@ export class LedgerPosting {
             description: body.description,
             currencyId: receiverAccount.currencyId,
             metadata: {},
+            holdId: undefined,
           },
         ],
       },

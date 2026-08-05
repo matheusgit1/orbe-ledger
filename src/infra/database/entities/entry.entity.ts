@@ -35,7 +35,7 @@ export interface CreateEntryProps {
 @Index(['journalId', 'sequence'], { unique: true })
 @Index(['accountId', 'createdAt'])
 @Index(['journalId'])
-@Check(`"amount" > 0`)
+@Check(`"amount" >= 0`)
 export class Entry {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -127,9 +127,9 @@ export class Entry {
 
   // Validação de domínio
   validate(): void {
-    if (this.amount <= 0) {
+    if (this.amount < 0) {
       throw new Error(
-        `Entry amount must be greater than 0, received ${this.amount}`,
+        `Entry amount must be euqal or greater than 0, received ${this.amount}`,
       );
     }
 
