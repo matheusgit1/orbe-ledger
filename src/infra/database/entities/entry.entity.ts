@@ -118,7 +118,7 @@ export class Entry {
   }
 
   isHoldRelated(): boolean {
-    return this.holdId !== null || this.hold !== null;
+    return this.holdId !== null && this.holdId !== undefined;
   }
 
   getAmountInBaseCurrency(): number {

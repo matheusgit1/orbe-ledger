@@ -64,33 +64,20 @@ export class JournalService {
       this.logger.log(`[${hash}] Criando journal tipo ${journal.type}`);
       console.log('journal: ', journal);
 
-      // Agrupar entries por accountId
-      const entriesByAccount = new Map<string, Entry[]>();
-      for (const entry of journal.entries) {
-        if (!entriesByAccount.has(entry.accountId)) {
-          entriesByAccount.set(entry.accountId, []);
-        }
-        entriesByAccount.get(entry.accountId)!.push(entry);
-      }
-
-      // Atualizar balanços por conta usando updateByEntries
-      for (const [accountId, entries] of entriesByAccount) {
-        const balanceSnapshot =
-          await this.balanceSnapshotService.getAvailableBalanceAndLock(
-            queryRunner,
-            accountId,
-          );
-        if (!balanceSnapshot) {
-          throw new Error(
-            `Balance snapshot not found for account ${accountId}`,
-          );
-        }
-        await this.balanceSnapshotService.updateBalanceByEntries(
-          queryRunner,
-          journal,
-          balanceSnapshot,
-          entries,
-        );
+      // Roteia para o método específico baseado no tipo de journal
+      switch (journal.type) {
+        case JournalType.HOLD:
+          await this.registerHoldJournal(queryRunner, hash, journal);
+          break;
+        case JournalType.PIX:
+        case JournalType.SETTLEMENT:
+        case JournalType.TRANSFER:
+        case JournalType.TED:
+        case JournalType.DOC:
+          await this.registerTransferJournal(queryRunner, hash, journal);
+          break;
+        default:
+          await this.registerGenericJournal(queryRunner, hash, journal);
       }
 
       journal.setStatus(JournalStatus.POSTED);
@@ -138,6 +125,156 @@ export class JournalService {
     } catch (error: any) {
       this.logger.error(`[${hash}] Erro ao criar journal: ${error.message}`);
       throw new BadRequestException(`Erro ao criar journal: ${error.message}`);
+    }
+  }
+
+  /**
+   * Registra journal de transferência (PIX, SETTLEMENT, TICKET)
+   * Afecta: book e available apenas
+   */
+  private async registerTransferJournal(
+    queryRunner: QueryRunner,
+    hash: string,
+    journal: Journal,
+  ): Promise<void> {
+    // Agrupar entries por accountId
+    const entriesByAccount = new Map<string, Entry[]>();
+    for (const entry of journal.entries) {
+      if (!entriesByAccount.has(entry.accountId)) {
+        entriesByAccount.set(entry.accountId, []);
+      }
+      entriesByAccount.get(entry.accountId)!.push(entry);
+    }
+
+    // Atualizar balanços por conta usando método específico de transferência
+    for (const [accountId, entries] of entriesByAccount) {
+      const balanceSnapshot =
+        await this.balanceSnapshotService.getAvailableBalanceAndLock(
+          queryRunner,
+          accountId,
+        );
+      if (!balanceSnapshot) {
+        throw new Error(`Balance snapshot not found for account ${accountId}`);
+      }
+
+      // Processa cada entry como transferência
+      for (const entry of entries) {
+        await this.balanceSnapshotService.updateBalanceForTransfer(
+          queryRunner,
+          balanceSnapshot,
+          entry.amount,
+          entry.isDebit(),
+          entry.id,
+          entry.journalId,
+        );
+      }
+    }
+  }
+
+  /**
+   * Registra journal de hold
+   * Payer: mantém book, subtrai available, soma held
+   * Receiver/Revenue: afeta book e available normalmente
+   */
+  private async registerHoldJournal(
+    queryRunner: QueryRunner,
+    hash: string,
+    journal: Journal,
+  ): Promise<void> {
+    // Agrupar entries por accountId
+    const entriesByAccount = new Map<string, Entry[]>();
+    for (const entry of journal.entries) {
+      if (!entriesByAccount.has(entry.accountId)) {
+        entriesByAccount.set(entry.accountId, []);
+      }
+      entriesByAccount.get(entry.accountId)!.push(entry);
+    }
+
+    // Atualizar balanços por conta
+    for (const [accountId, entries] of entriesByAccount) {
+      const balanceSnapshot =
+        await this.balanceSnapshotService.getAvailableBalanceAndLock(
+          queryRunner,
+          accountId,
+        );
+      if (!balanceSnapshot) {
+        throw new Error(`Balance snapshot not found for account ${accountId}`);
+      }
+
+      // Verifica se a conta tem entries relacionadas a hold
+      const hasHoldRelatedEntries = entries.some((e) => e.isHoldRelated());
+
+      if (hasHoldRelatedEntries) {
+        // Processa entries relacionadas a hold usando método específico
+        for (const entry of entries) {
+          if (entry.isHoldRelated()) {
+            await this.balanceSnapshotService.updateBalanceForHold(
+              queryRunner,
+              balanceSnapshot,
+              entry.amount,
+              entry.id,
+              entry.journalId,
+            );
+          } else {
+            await this.balanceSnapshotService.updateBalanceForTransfer(
+              queryRunner,
+              balanceSnapshot,
+              entry.amount,
+              entry.isDebit(),
+              entry.id,
+              entry.journalId,
+            );
+          }
+        }
+      } else {
+        // Contas sem hold (receiver, revenue) usam transferência normal
+        for (const entry of entries) {
+          await this.balanceSnapshotService.updateBalanceForTransfer(
+            queryRunner,
+            balanceSnapshot,
+            entry.amount,
+            entry.isDebit(),
+            entry.id,
+            entry.journalId,
+          );
+        }
+      }
+    }
+  }
+
+  /**
+   * Registra journal genérico (usando método updateByEntries)
+   */
+  private async registerGenericJournal(
+    queryRunner: QueryRunner,
+    hash: string,
+    journal: Journal,
+  ): Promise<void> {
+    // Agrupar entries por accountId
+    const entriesByAccount = new Map<string, Entry[]>();
+    for (const entry of journal.entries) {
+      if (!entriesByAccount.has(entry.accountId)) {
+        entriesByAccount.set(entry.accountId, []);
+      }
+      entriesByAccount.get(entry.accountId)!.push(entry);
+    }
+
+    // Atualizar balanços por conta usando método genérico
+    for (const [accountId, entries] of entriesByAccount) {
+      const balanceSnapshot =
+        await this.balanceSnapshotService.getAvailableBalanceAndLock(
+          queryRunner,
+          accountId,
+        );
+      if (!balanceSnapshot) {
+        throw new Error(`Balance snapshot not found for account ${accountId}`);
+      }
+      await this.balanceSnapshotService.updateBalanceByEntries(
+        queryRunner,
+        journal,
+        balanceSnapshot,
+        entries,
+      );
     }
   }
 
