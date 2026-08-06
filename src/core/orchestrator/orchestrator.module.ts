@@ -7,6 +7,7 @@ import { TicketUsecase } from './services/deposits/usecases/ticket.usecase';
 import { TedUsecase } from './services/deposits/usecases/ted.usecase';
 import { DocUsecase } from './services/deposits/usecases/doc.usecase';
 import { CreateHoldUsecase } from './services/holds/create-hold.usecase';
+import { ReleaseHoldUsecase } from './services/holds/release-hold.usecase';
 
 const services = [
   /**PIX**/
@@ -18,6 +19,7 @@ const services = [
   DocUsecase,
   /**HOLDS */
   CreateHoldUsecase,
+  ReleaseHoldUsecase,
 ];
 
 @Module({

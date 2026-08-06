@@ -6,7 +6,7 @@ export enum TransactionStatus {
   FAILED = 'FAILED',
   REVERSED = 'REVERSED',
   CANCELLED = 'CANCELLED',
-  PENDING_REVERSAL = 'PENDING_REVERSAL'
+  PENDING_REVERSAL = 'PENDING_REVERSAL',
 }
 
 export enum TransactionType {
@@ -25,5 +25,6 @@ export enum TransactionType {
   CASHBACK = 'CASHBACK',
   SETTLEMENT = 'SETTLEMENT',
   TICKET = 'TICKET',
-  HOLD = 'HOLD'
+  HOLD = 'HOLD',
+  HOLD_RELEASE = 'HOLD_RELEASE',
 }

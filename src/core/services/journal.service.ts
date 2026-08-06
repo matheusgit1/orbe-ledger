@@ -69,6 +69,9 @@ export class JournalService {
         case JournalType.HOLD:
           await this.registerHoldJournal(queryRunner, hash, journal);
           break;
+        case JournalType.RELEASE:
+          await this.registerReleaseJournal(queryRunner, hash, journal);
+          break;
         case JournalType.PIX:
         case JournalType.SETTLEMENT:
         case JournalType.TRANSFER:
@@ -229,6 +232,59 @@ export class JournalService {
       } else {
         // Contas sem hold (receiver, revenue) usam transferência normal
         for (const entry of entries) {
+          await this.balanceSnapshotService.updateBalanceForTransfer(
+            queryRunner,
+            balanceSnapshot,
+            entry.amount,
+            entry.isDebit(),
+            entry.id,
+            entry.journalId,
+          );
+        }
+      }
+    }
+  }
+
+  /**
+   * Registra journal de release de hold
+   * Account: mantém book, soma available, subtrai held
+   */
+  private async registerReleaseJournal(
+    queryRunner: QueryRunner,
+    hash: string,
+    journal: Journal,
+  ): Promise<void> {
+    // Agrupar entries por accountId
+    const entriesByAccount = new Map<string, Entry[]>();
+    for (const entry of journal.entries) {
+      if (!entriesByAccount.has(entry.accountId)) {
+        entriesByAccount.set(entry.accountId, []);
+      }
+      entriesByAccount.get(entry.accountId)!.push(entry);
+    }
+
+    // Atualizar balanços por conta
+    for (const [accountId, entries] of entriesByAccount) {
+      const balanceSnapshot =
+        await this.balanceSnapshotService.getAvailableBalanceAndLock(
+          queryRunner,
+          accountId,
+        );
+      if (!balanceSnapshot) {
+        throw new Error(`Balance snapshot not found for account ${accountId}`);
+      }
+
+      // Processa entries de release usando método específico
+      for (const entry of entries) {
+        if (entry.isHoldRelated()) {
+          await this.balanceSnapshotService.updateBalanceForHoldRelease(
+            queryRunner,
+            balanceSnapshot,
+            entry.amount,
+            entry.id,
+            entry.journalId,
+          );
+        } else {
           await this.balanceSnapshotService.updateBalanceForTransfer(
             queryRunner,
             balanceSnapshot,

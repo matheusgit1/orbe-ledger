@@ -116,6 +116,86 @@ export class LedgerPosting {
     );
   }
 
+  async postHoldRelease(
+    queryRunner: QueryRunner,
+    dto: {
+      requestId: string;
+      ledger: Ledger;
+      transaction: Transaction;
+      description: string;
+      idempotencyKey: string;
+      amount: number;
+      payerAccount: Account;
+      receiverAccount: Account;
+      hold: Hold;
+    },
+  ) {
+    const createdJournal = await this.journalService.createJournal(
+      queryRunner,
+      {
+        ledgerId: dto.ledger.id,
+        type: JournalType.RELEASE,
+        description: dto.description,
+        reference: dto.idempotencyKey,
+        externalReference: dto.idempotencyKey,
+        correlationId: dto.transaction.id,
+        causationId: dto.idempotencyKey,
+        source: 'HOLD_RELEASE',
+        createdBy: 'SYSTEM',
+        metadata: {},
+        entries: [
+          {
+            accountId: dto.receiverAccount.id,
+            amount: dto.amount,
+            side: EntrySide.CREDIT,
+            holdId: dto.hold.id,
+            description: dto.description,
+            currencyId: dto.receiverAccount.currencyId,
+            metadata: {},
+          },
+          {
+            accountId: dto.payerAccount.id,
+            amount: dto.amount,
+            side: EntrySide.DEBIT,
+            holdId: dto.hold.id,
+            description: dto.description,
+            currencyId: dto.payerAccount.currencyId,
+            metadata: {},
+          },
+        ],
+      },
+    );
+
+    await this.auditService.createAudit(
+      AuditEntity.TRANSACTION,
+      dto.transaction.id,
+      AuditAction.UPDATE,
+      'SYSTEM',
+      dto.requestId,
+      {
+        amount: dto.amount,
+        payerAccountId: dto.payerAccount.id,
+        receiverAccountId: dto.receiverAccount.id,
+        holdId: dto.hold.id,
+        idempotencyKey: dto.idempotencyKey,
+      },
+      {
+        transactionId: dto.transaction.id,
+        status: dto.transaction.status,
+        creditEntryId: createdJournal
+          .getCreditEntry()
+          .map((e) => e.id)
+          .join(','),
+      },
+    );
+
+    return await this.journalService.registerJournal(
+      queryRunner,
+      dto.requestId,
+      createdJournal,
+    );
+  }
+
   async postPixInternal(
     queryRunner: QueryRunner,
     dto: {
