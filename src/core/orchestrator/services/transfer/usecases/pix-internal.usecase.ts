@@ -76,13 +76,6 @@ export class PixInternalUsecase {
         requestId: body.requestId,
       });
 
-      console.log('idempotency result: ', idempotencyResult);
-
-      //TODo - valdiar denpotencia  atualizar ou criar um noca
-      // if (idempotencyResult && !idempotencyResult.isPending()) {
-      //   return idempotencyResult?.response || null;
-      // }
-
       const { payerAccount, receiverAccount } =
         await this.transferRules.validate({
           payerAccount: body.accountOrigin,

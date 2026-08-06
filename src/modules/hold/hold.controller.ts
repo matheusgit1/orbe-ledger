@@ -10,14 +10,14 @@ export class HoldController {
   async createHold() {
     return await this.holdService.createHold({
       accountNumber: '000002',
-      amount: 500,
+      amount: 1000,
     });
   }
 
   @Post('/release')
   async releaseHold() {
     return await this.holdService.releaseHold({
-      holdId: 'c9a471a3-c8fe-4b22-950e-8b6c72f482b5',
+      holdId: '6c6c5c60-cd4d-4852-8e31-5622a9842c8e',
       idempotencyKey: crypto.randomUUID(),
     });
   }

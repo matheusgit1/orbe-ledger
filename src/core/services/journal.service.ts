@@ -64,25 +64,6 @@ export class JournalService {
       this.logger.log(`[${hash}] Criando journal tipo ${journal.type}`);
       console.log('journal: ', journal);
 
-      // Roteia para o método específico baseado no tipo de journal
-      switch (journal.type) {
-        case JournalType.HOLD:
-          await this.registerHoldJournal(queryRunner, hash, journal);
-          break;
-        case JournalType.RELEASE:
-          await this.registerReleaseJournal(queryRunner, hash, journal);
-          break;
-        case JournalType.PIX:
-        case JournalType.SETTLEMENT:
-        case JournalType.TRANSFER:
-        case JournalType.TED:
-        case JournalType.DOC:
-          await this.registerTransferJournal(queryRunner, hash, journal);
-          break;
-        default:
-          await this.registerGenericJournal(queryRunner, hash, journal);
-      }
-
       journal.setStatus(JournalStatus.POSTED);
       const savedJournal = await this.saveJournal(queryRunner, journal);
 

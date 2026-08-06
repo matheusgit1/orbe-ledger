@@ -14,12 +14,15 @@ import {
   AuditEntity,
 } from 'src/infra/database/common/enums/audit.enum';
 import { Hold } from 'src/infra/database/entities/hold.entity';
+import { BalanceSnapshotService } from '../services/balance-snapshot.service';
+import { BalanceSnapshot } from 'src/infra/database/entities/balance-snapshot.entity';
 
 @Injectable()
 export class LedgerPosting {
   constructor(
     private readonly journalService: JournalService,
     private readonly auditService: AuditService,
+    private readonly balanceSnapshot: BalanceSnapshotService,
   ) {}
 
   async postHold(
@@ -33,11 +36,10 @@ export class LedgerPosting {
       amount: number;
       payerAccount: Account;
       receiverAccount: Account;
-      revenueAccount: Account;
-      tax: number;
       hold: Hold;
     },
   ) {
+    const accounts = [dto.receiverAccount, dto.payerAccount];
     const createdJournal = await this.journalService.createJournal(
       queryRunner,
       {
@@ -63,16 +65,7 @@ export class LedgerPosting {
           },
           {
             accountId: dto.receiverAccount.id,
-            amount: dto.amount - dto.tax,
-            side: EntrySide.CREDIT,
-            holdId: undefined,
-            description: dto.description,
-            currencyId: dto.receiverAccount.currencyId,
-            metadata: {},
-          },
-          {
-            accountId: dto.revenueAccount.id,
-            amount: parseFloat(Number(dto.tax).toFixed(2)),
+            amount: dto.amount,
             side: EntrySide.CREDIT,
             holdId: undefined,
             description: dto.description,
@@ -108,6 +101,32 @@ export class LedgerPosting {
           .join(','),
       },
     );
+
+    //atualiza conta pagadora
+    await this.balanceSnapshot.updateBalanceForHold(
+      queryRunner,
+      dto.payerAccount.balanceSnapshots,
+      dto.amount,
+      createdJournal.entries
+        .filter((e) => e.accountId === dto.payerAccount.id)
+        .map((e) => e.id)
+        .join(','),
+      createdJournal.id,
+    );
+
+    //atualiza conta recebedora
+    for (const entry of createdJournal.entries) {
+      if (entry.accountId === dto.receiverAccount.id) {
+        await this.balanceSnapshot.updateBalanceForTransfer(
+          queryRunner,
+          dto.receiverAccount.balanceSnapshots,
+          dto.amount,
+          entry.isDebit(),
+          entry.id,
+          createdJournal.id,
+        );
+      }
+    }
 
     return await this.journalService.registerJournal(
       queryRunner,
@@ -189,6 +208,33 @@ export class LedgerPosting {
       },
     );
 
+    //atualiza conta recebedora
+    for (const entry of createdJournal.entries) {
+      if (entry.accountId === dto.receiverAccount.id) {
+        await this.balanceSnapshot.updateBalanceForHoldRelease(
+          queryRunner,
+          dto.receiverAccount.balanceSnapshots,
+          dto.amount,
+          entry.id,
+          createdJournal.id,
+        );
+      }
+    }
+
+    //atualiza conta pagadora
+    for (const entry of createdJournal.entries) {
+      if (entry.accountId === dto.payerAccount.id) {
+        await this.balanceSnapshot.updateBalanceForTransfer(
+          queryRunner,
+          dto.payerAccount.balanceSnapshots,
+          dto.amount,
+          entry.isDebit(),
+          entry.id,
+          createdJournal.id,
+        );
+      }
+    }
+
     return await this.journalService.registerJournal(
       queryRunner,
       dto.requestId,
@@ -256,31 +302,58 @@ export class LedgerPosting {
       },
     );
 
-    await this.auditService.createAudit(
-      AuditEntity.TRANSACTION,
-      transaction.id,
-      AuditAction.UPDATE,
-      'SYSTEM',
-      requestId,
-      {
-        amount: body.amount,
-        payer: payerAccount.id,
-        receiver: receiverAccount.id,
-        idempotencyKey: body.idempotencyKey,
-      },
-      {
-        transactionId: transaction.id,
-        status: transaction.status,
-        debitEntryId: createdJournal
-          .getDebitEntry()
-          .map((e) => e.id)
-          .join(','),
-        creditEntryId: createdJournal
-          .getCreditEntry()
-          .map((e) => e.id)
-          .join(','),
-      },
-    );
+    // await this.auditService.createAudit(
+    //   AuditEntity.TRANSACTION,
+    //   transaction.id,
+    //   AuditAction.UPDATE,
+    //   'SYSTEM',
+    //   requestId,
+    //   {
+    //     amount: body.amount,
+    //     payer: payerAccount.id,
+    //     receiver: receiverAccount.id,
+    //     idempotencyKey: body.idempotencyKey,
+    //   },
+    //   {
+    //     transactionId: transaction.id,
+    //     status: transaction.status,
+    //     debitEntryId: createdJournal
+    //       .getDebitEntry()
+    //       .map((e) => e.id)
+    //       .join(','),
+    //     creditEntryId: createdJournal
+    //       .getCreditEntry()
+    //       .map((e) => e.id)
+    //       .join(','),
+    //   },
+    // );
+
+    //atualiza conta recebedora
+    for (const entry of createdJournal.entries) {
+      if (entry.accountId === dto.receiverAccount.id) {
+        await this.balanceSnapshot.updateBalanceForTransfer(
+          queryRunner,
+          dto.receiverAccount.balanceSnapshots,
+          dto.body.amount,
+          entry.isDebit(),
+          entry.id,
+          createdJournal.id,
+        );
+      }
+    }
+
+    for (const entry of createdJournal.entries) {
+      if (entry.accountId === dto.payerAccount.id) {
+        await this.balanceSnapshot.updateBalanceForTransfer(
+          queryRunner,
+          dto.payerAccount.balanceSnapshots,
+          dto.body.amount,
+          entry.isDebit(),
+          entry.id,
+          createdJournal.id,
+        );
+      }
+    }
 
     return await this.journalService.registerJournal(
       queryRunner,
@@ -372,6 +445,32 @@ export class LedgerPosting {
       },
     );
 
+    for (const entry of createdJournal.entries) {
+      if (entry.accountId === dto.payerAccount.id) {
+        await this.balanceSnapshot.updateBalanceForTransfer(
+          queryRunner,
+          dto.payerAccount.balanceSnapshots,
+          dto.amount,
+          entry.isDebit(),
+          entry.id,
+          createdJournal.id,
+        );
+      }
+    }
+
+    for (const entry of createdJournal.entries) {
+      if (entry.accountId === dto.receiverAccount.id) {
+        await this.balanceSnapshot.updateBalanceForTransfer(
+          queryRunner,
+          dto.receiverAccount.balanceSnapshots,
+          dto.amount - dto.tax,
+          entry.isDebit(),
+          entry.id,
+          createdJournal.id,
+        );
+      }
+    }
+
     return await this.journalService.registerJournal(
       queryRunner,
       dto.requestId,
@@ -461,6 +560,32 @@ export class LedgerPosting {
           .join(','),
       },
     );
+
+    for (const entry of createdJournal.entries) {
+      if (entry.accountId === dto.payerAccount.id) {
+        await this.balanceSnapshot.updateBalanceForTransfer(
+          queryRunner,
+          dto.payerAccount.balanceSnapshots,
+          dto.amount,
+          entry.isDebit(),
+          entry.id,
+          createdJournal.id,
+        );
+      }
+    }
+
+    for (const entry of createdJournal.entries) {
+      if (entry.accountId === dto.receiverAccount.id) {
+        await this.balanceSnapshot.updateBalanceForTransfer(
+          queryRunner,
+          dto.receiverAccount.balanceSnapshots,
+          dto.amount - dto.tax,
+          entry.isDebit(),
+          entry.id,
+          createdJournal.id,
+        );
+      }
+    }
 
     return await this.journalService.registerJournal(
       queryRunner,

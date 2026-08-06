@@ -107,10 +107,8 @@ export class CreateHoldUsecase {
         description: 'aprisionamento fluxo hold',
         idempotencyKey: body.idempotencyKey,
         amount: body.amount,
-        tax: body.tax,
         payerAccount: body.payerAccount,
         receiverAccount: body.receiverAccount,
-        revenueAccount: body.revenueAccount,
         requestId: body.requestId,
         hold: hold
       });

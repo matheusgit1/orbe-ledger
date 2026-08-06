@@ -48,8 +48,6 @@ export class PixService {
         throw new Error(`Conta origem ${body.originAccountId} não encontrada`);
       }
 
-      console.log({ receiverAccount, payerAccount });
-
       const response = await this.pixInternalUsecase.handler({
         requestId: body.idempotencyKey,
         accountOrigin: payerAccount,
