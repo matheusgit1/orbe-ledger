@@ -3,7 +3,7 @@ export enum JournalStatus {
   POSTED = 'POSTED',
   REVERSED = 'REVERSED',
   FAILED = 'FAILED',
-  CANCELLED = 'CANCELLED'
+  CANCELLED = 'CANCELLED',
 }
 
 export enum JournalType {
@@ -17,6 +17,7 @@ export enum JournalType {
   REVERSAL = 'REVERSAL',
   HOLD = 'HOLD',
   RELEASE = 'RELEASE',
+  CAPTURE = 'CAPTURE',
   ADJUSTMENT = 'ADJUSTMENT',
   CASHBACK = 'CASHBACK',
   TAX = 'TAX',
@@ -24,10 +25,10 @@ export enum JournalType {
   TRANSFER_DEBIT = 'TRANSFER_DEBIT',
   LIQUIDACAO_SAIDA = 'LIQUIDACAO_SAIDA',
   LIQUIDACAO_ENTRADA = 'LIQUIDACAO_ENTRADA',
-  TRANSFER_CREDIT = 'TRANSFER_CREDIT'
+  TRANSFER_CREDIT = 'TRANSFER_CREDIT',
 }
 
 export enum EntrySide {
   DEBIT = 'DEBIT',
-  CREDIT = 'CREDIT'
+  CREDIT = 'CREDIT',
 }

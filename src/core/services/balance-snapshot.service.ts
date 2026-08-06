@@ -126,6 +126,34 @@ export class BalanceSnapshotService {
     return savedSnapshot;
   }
 
+  /**
+   * Atualiza balanço para captura de hold
+   * Zera: held
+   * Subtrai: book pelo valor do held
+   * Mantém: available
+   */
+  async updateBalanceForCaptureHold(
+    queryRunner: QueryRunner,
+    balance: BalanceSnapshot,
+    amount: number,
+    entryId?: string,
+    journalId?: string,
+  ): Promise<BalanceSnapshot> {
+    this.logger.log(
+      `Updating balance for hold capture on account ${balance.accountId}, amount: ${amount}`,
+    );
+
+    console.log('snapshot antes: ', balance);
+
+    balance.applyHoldCapture(amount, entryId, journalId);
+
+    console.log('snapshot depois: ', balance);
+
+    const savedSnapshot = await queryRunner.manager.save(balance);
+
+    return savedSnapshot;
+  }
+
   async getCurrentBalance(accountId: string): Promise<BalanceSnapshot | null> {
     return this.balanceSnapshotRepository.findOne({
       where: { accountId },

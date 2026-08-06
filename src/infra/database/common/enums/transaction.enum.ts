@@ -27,4 +27,5 @@ export enum TransactionType {
   TICKET = 'TICKET',
   HOLD = 'HOLD',
   HOLD_RELEASE = 'HOLD_RELEASE',
+  HOLD_CAPTURE = 'HOLD_CAPTURE',
 }

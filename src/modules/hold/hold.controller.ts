@@ -21,4 +21,12 @@ export class HoldController {
       idempotencyKey: crypto.randomUUID(),
     });
   }
+
+  @Post('/capture')
+  async captureHold() {
+    return await this.holdService.captureHold({
+      holdId: 'fd3ff1b2-5585-4ef1-8c3c-22dc340ad0e9',
+      idempotencyKey: crypto.randomUUID(),
+    });
+  }
 }

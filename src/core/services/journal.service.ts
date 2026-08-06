@@ -642,6 +642,7 @@ export class JournalService {
       [JournalType.CASHBACK]: OutboxEventType.JOURNAL_CREATED,
       [JournalType.TAX]: OutboxEventType.JOURNAL_CREATED,
       [JournalType.INTEREST]: OutboxEventType.JOURNAL_CREATED,
+      [JournalType.CAPTURE]: OutboxEventType.JOURNAL_CREATED,
     };
 
     return mapping[journalType] || OutboxEventType.JOURNAL_CREATED;

@@ -1,6 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { REQUEST } from '@nestjs/core';
 import type { Request } from 'express';
+import { CaptureHoldUsecase } from 'src/core/orchestrator/services/holds/capture-hold.usecase';
 import { CreateHoldUsecase } from 'src/core/orchestrator/services/holds/create-hold.usecase';
 import { ReleaseHoldUsecase } from 'src/core/orchestrator/services/holds/release-hold.usecase';
 import { AccountsService } from 'src/core/services/accounts.service';
@@ -23,6 +24,7 @@ export class HoldService {
     private readonly holdService: HoldRepository,
     private readonly holdUsecase: CreateHoldUsecase,
     private readonly releaseHoldUsecase: ReleaseHoldUsecase,
+    private readonly captureHoldUsecase: CaptureHoldUsecase,
     // private feeCalculatorService: FeeCalculatorService
   ) {}
 
@@ -87,6 +89,38 @@ export class HoldService {
         idempotencyKey: dto.idempotencyKey,
         requestId: hash,
         ledger: ledger,
+      });
+      this.logger.log(`[${hash}] Hold release: ${JSON.stringify(response)}`);
+      return response;
+    } catch (err) {
+      this.logger.error(
+        `[${hash}] Erro na liberação do hold: ${JSON.stringify(err)}`,
+      );
+      throw err;
+    }
+  }
+
+  async captureHold(dto: { holdId: string; idempotencyKey: string }) {
+    const { hash } = this.request;
+    try {
+      const [hold, technicalAccount, ledger, service, revenueAccount] =
+        await Promise.all([
+          this.holdService.findById(dto.holdId),
+          this.accountService.findByCode('HOLD-RESERVE'),
+          this.ledgerService.getLedgerByCode(LedgerCode.MAIN),
+          this.serviceService.getServiceByCode('SRV-HOLD'),
+          this.accountService.findByCode('REVENUE-HOLD'),
+        ]);
+
+      const response = await this.captureHoldUsecase.handler({
+        hold: hold,
+        payerAccount: technicalAccount,
+        receiverAccount: hold.account,
+        idempotencyKey: dto.idempotencyKey,
+        revenueAccount: revenueAccount,
+        requestId: hash,
+        ledger: ledger,
+        tax: this.feeService.calculateNetAmount(service, hold.amount),
       });
       this.logger.log(`[${hash}] Hold release: ${JSON.stringify(response)}`);
       return response;

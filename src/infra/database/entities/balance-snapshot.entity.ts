@@ -180,6 +180,32 @@ export class BalanceSnapshot {
   }
 
   /**
+   * Aplica captura de hold
+   * Subtrai: held pelo valor do hold
+   * Subtrai: book pelo valor do held
+   * Mantém: available
+   */
+  applyHoldCapture(amount: number, entryId?: string, journalId?: string): void {
+    const currentBook =
+      typeof this.book === 'string' ? parseFloat(this.book) : this.book;
+    const currentHeld =
+      typeof this.held === 'string' ? parseFloat(this.held) : this.held;
+
+    this.book = currentBook - parseFloat(amount.toString());
+    this.held = currentHeld - parseFloat(amount.toString());
+
+    if (entryId) {
+      this.lastEntryId = entryId;
+    }
+    if (journalId) {
+      this.lastJournalId = journalId;
+    }
+    this.version += 1;
+
+    this.validate();
+  }
+
+  /**
    * Aplica uma transferência completa (debito e credito)
    * Payer: book--, available--
    * Receiver: book++, available++
@@ -261,6 +287,12 @@ export class BalanceSnapshot {
     if (this.book < 0) {
       throw new Error(
         `Negative book balance for account ${this.accountId}: ${this.book}`,
+      );
+    }
+
+    if (this.held < 0) {
+      throw new Error(
+        `Negative held balance for account ${this.accountId}: ${this.held}`,
       );
     }
   }

@@ -152,14 +152,14 @@ export class Hold {
     return this.isActive() && !this.isExpiredByDate();
   }
 
-  capture(amount?: number): void {
+  capture(): void {
     if (!this.canCapture()) {
       throw new Error(`Cannot capture hold in status ${this.status}`);
     }
 
     this.status = HoldStatus.CAPTURED;
     this.capturedAt = new Date();
-    this.capturedAmount = amount || this.amount;
+    this.capturedAmount = this.amount;
 
     if (this.capturedAmount !== this.amount) {
       this.status = HoldStatus.PARTIALLY_CAPTURED;
