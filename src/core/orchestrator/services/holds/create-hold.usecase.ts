@@ -13,7 +13,6 @@ import { Account } from 'src/infra/database/entities/account.entity';
 import { Hold } from 'src/infra/database/entities/hold.entity';
 import { Journal } from 'src/infra/database/entities/journal.entity';
 import { Ledger } from 'src/infra/database/entities/ledger.entity';
-import { Service } from 'src/infra/database/entities/service.entity';
 import { Transaction } from 'src/infra/database/entities/transaction.entity';
 import { OrmService } from 'src/infra/database/orm/orm.service';
 
@@ -34,12 +33,10 @@ export class CreateHoldUsecase {
   async handler(body: {
     payerAccount: Account;
     receiverAccount: Account;
-    revenueAccount: Account;
     idempotencyKey: string;
     requestId: string;
     amount: number;
     ledger: Ledger;
-    tax: number;
   }) {
     this.logger.log('hold usecase runnning');
     const { queryRunner } = await this.ormService.getQueryRunner();
@@ -110,17 +107,12 @@ export class CreateHoldUsecase {
         payerAccount: body.payerAccount,
         receiverAccount: body.receiverAccount,
         requestId: body.requestId,
-        hold: hold
+        hold: hold,
       });
 
       await this.transactionService.complete(queryRunner, savedTransaction);
 
-      const resp = this.buildResponse(
-        savedTransaction,
-        journal,
-        hold,
-        body.tax,
-      );
+      const resp = this.buildResponse(savedTransaction, journal, hold, 0);
 
       await this.idempotencyService.updateWithQueryRunner(
         queryRunner,

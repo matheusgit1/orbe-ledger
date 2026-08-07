@@ -368,6 +368,11 @@ const createReserveAccounts = async (
       description: 'Conta de reserva para holds',
     },
     {
+      code: 'HOLD-SETTLEMENT',
+      name: 'Hold Settlement',
+      description: 'Conta de liquidação de holds',
+    },
+    {
       code: 'REVENUE-PIX',
       name: 'Receita PIX',
       description: 'Conta de receita de taxas PIX',

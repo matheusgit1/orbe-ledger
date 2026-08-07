@@ -67,32 +67,32 @@ export class JournalService {
       journal.setStatus(JournalStatus.POSTED);
       const savedJournal = await this.saveJournal(queryRunner, journal);
 
-      await this.auditService.createAudit(
-        AuditEntity.JOURNAL,
-        journal.id,
-        AuditAction.CREATE,
-        journal.createdBy || 'SYSTEM',
-        hash,
-        {
-          journalNumber: journal.journalNumber,
-          type: journal.type,
-          entriesCount: journal.entries.length,
-          totalAmount:
-            journal.entries.reduce((sum, e) => sum + e.amount, 0) / 2,
-        },
-        {
-          id: journal.id,
-          journalNumber: journal.journalNumber,
-          type: journal.type,
-          status: journal.status,
-          entries: journal.entries.map((e) => ({
-            accountId: e.accountId,
-            side: e.side,
-            amount: e.amount,
-            currencyId: e.currencyId,
-          })),
-        },
-      );
+      // await this.auditService.createAudit(
+      //   AuditEntity.JOURNAL,
+      //   journal.id,
+      //   AuditAction.CREATE,
+      //   journal.createdBy || 'SYSTEM',
+      //   hash,
+      //   {
+      //     journalNumber: journal.journalNumber,
+      //     type: journal.type,
+      //     entriesCount: journal.entries.length,
+      //     totalAmount:
+      //       journal.entries.reduce((sum, e) => sum + e.amount, 0) / 2,
+      //   },
+      //   {
+      //     id: journal.id,
+      //     journalNumber: journal.journalNumber,
+      //     type: journal.type,
+      //     status: journal.status,
+      //     entries: journal.entries.map((e) => ({
+      //       accountId: e.accountId,
+      //       side: e.side,
+      //       amount: e.amount,
+      //       currencyId: e.currencyId,
+      //     })),
+      //   },
+      // );
 
       await this.createOutboxEvents(
         savedJournal,
@@ -276,42 +276,6 @@ export class JournalService {
           );
         }
       }
-    }
-  }
-
-  /**
-   * Registra journal genérico (usando método updateByEntries)
-   */
-  private async registerGenericJournal(
-    queryRunner: QueryRunner,
-    hash: string,
-    journal: Journal,
-  ): Promise<void> {
-    // Agrupar entries por accountId
-    const entriesByAccount = new Map<string, Entry[]>();
-    for (const entry of journal.entries) {
-      if (!entriesByAccount.has(entry.accountId)) {
-        entriesByAccount.set(entry.accountId, []);
-      }
-      entriesByAccount.get(entry.accountId)!.push(entry);
-    }
-
-    // Atualizar balanços por conta usando método genérico
-    for (const [accountId, entries] of entriesByAccount) {
-      const balanceSnapshot =
-        await this.balanceSnapshotService.getAvailableBalanceAndLock(
-          queryRunner,
-          accountId,
-        );
-      if (!balanceSnapshot) {
-        throw new Error(`Balance snapshot not found for account ${accountId}`);
-      }
-      await this.balanceSnapshotService.updateBalanceByEntries(
-        queryRunner,
-        journal,
-        balanceSnapshot,
-        entries,
-      );
     }
   }
 
@@ -505,57 +469,6 @@ export class JournalService {
   //   } finally {
   //     if (shouldManageTransaction) {
   //       await qr.release();
-  //     }
-  //   }
-  // }
-
-  /**
-   * Valida que débitos = créditos (partidas dobradas)
-   */
-  // private validateDoubleEntry(entries: Entry[]): void {
-  //   let totalDebit = 0;
-  //   let totalCredit = 0;
-
-  //   for (const entry of entries) {
-  //     if (entry.isDebit()) {
-  //       totalDebit += entry.amount;
-  //     } else if (entry.isCredit()) {
-  //       totalCredit += entry.amount;
-  //     } else {
-  //       throw new Error(`Lado inválido: ${entry.side}`);
-  //     }
-  //   }
-
-  //   if (Math.abs(totalDebit - totalCredit) > 0.01) {
-  //     throw new Error(
-  //       `Journal não está balanceado. Débito: ${totalDebit}, Crédito: ${totalCredit}`,
-  //     );
-  //   }
-
-  //   if (entries.length < 2) {
-  //     throw new Error(
-  //       'Journal deve ter pelo menos 2 entries (débito e crédito)',
-  //     );
-  //   }
-  // }
-
-  // /**
-  //  * Valida que todas as moedas existem
-  //  */
-  // private async validateCurrencies(entries: CreateEntryDto[]): Promise<void> {
-  //   const currencyIds = [...new Set(entries.map((e) => e.currencyId))];
-
-  //   for (const currencyId of currencyIds) {
-  //     const currency = await this.currencyService.findByFilters({
-  //       id: currencyId,
-  //     });
-
-  //     if (!currency) {
-  //       throw new Error(`Moeda ${currencyId} não encontrada`);
-  //     }
-
-  //     if (!currency.isActive) {
-  //       throw new Error(`Moeda ${currencyId} não está ativa`);
   //     }
   //   }
   // }

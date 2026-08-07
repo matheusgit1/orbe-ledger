@@ -92,7 +92,7 @@ export class ReleaseHoldUsecase {
         }));
 
       // Liberar o hold
-      hold.release('Manual release');
+      hold.release('System release');
       const updatedHold = await this.holdService.update(queryRunner, hold);
 
       // Criar journal de release

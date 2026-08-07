@@ -90,69 +90,6 @@ export class BalanceSnapshot {
   }
 
   /**
-   * Aplica entries genéricas - mantido para compatibilidade
-   * @deprecated Use métodos específicos: applyTransfer, applyHold, applyHoldRelease
-   */
-  updateByEntries(entries: Entry[]): void {
-    for (const entry of entries) {
-      if (entry.isHoldRelated()) {
-        this.applyHoldEntry(entry);
-      } else {
-        this.applyTransferEntry(entry);
-      }
-    }
-    this.validate();
-  }
-
-  /**
-   * Aplica uma entry de transferência normal
-   * Afecta: book e available
-   * Não afecta: held
-   */
-  private applyTransferEntry(entry: Entry): void {
-    const currentBook =
-      typeof this.book === 'string' ? parseFloat(this.book) : this.book;
-    const currentAvailable =
-      typeof this.available === 'string'
-        ? parseFloat(this.available)
-        : this.available;
-
-    if (entry.isDebit()) {
-      this.book = currentBook - parseFloat(entry.amount.toString());
-      this.available = currentAvailable - parseFloat(entry.amount.toString());
-    } else {
-      this.book = currentBook + parseFloat(entry.amount.toString());
-      this.available = currentAvailable + parseFloat(entry.amount.toString());
-    }
-
-    this.updateReferences(entry);
-  }
-
-  /**
-   * Aplica uma entry relacionada a hold
-   * Afecta: available (subtrai) e held (soma)
-   * Não afecta: book
-   */
-  private applyHoldEntry(entry: Entry): void {
-    const currentAvailable =
-      typeof this.available === 'string'
-        ? parseFloat(this.available)
-        : this.available;
-    const currentHeld =
-      typeof this.held === 'string' ? parseFloat(this.held) : this.held;
-
-    if (entry.isDebit()) {
-      this.available = currentAvailable - parseFloat(entry.amount.toString());
-      this.held = currentHeld + parseFloat(entry.amount.toString());
-    } else {
-      this.available = currentAvailable + parseFloat(entry.amount.toString());
-      this.held = currentHeld - parseFloat(entry.amount.toString());
-    }
-
-    this.updateReferences(entry);
-  }
-
-  /**
    * Aplica liberação de hold
    * Afecta: available (soma) e held (subtrai)
    * Não afecta: book

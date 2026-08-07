@@ -17,33 +17,6 @@ export class BalanceSnapshotService {
   ) {}
 
   /**
-   * Updates balance for an account after multiple entries
-   * Detecta automaticamente o tipo de operação (transferência ou hold)
-   */
-  async updateBalanceByEntries(
-    queryRunner: QueryRunner,
-    journal: Journal,
-    balance: BalanceSnapshot,
-    entries: Entry[],
-  ): Promise<BalanceSnapshot> {
-    this.logger.log(
-      `Updating balance for account ${balance.accountId} with ${entries.length} entries`,
-    );
-
-    console.log('snapshot antes: ', balance);
-    console.log('entries: ', entries);
-
-    // Usa o método genérico que delega para os métodos específicos
-    balance.updateByEntries(entries);
-
-    console.log('snapshot depois: ', balance);
-
-    const savedSnapshot = await queryRunner.manager.save(balance);
-
-    return savedSnapshot;
-  }
-
-  /**
    * Atualiza balanço para transferência normal
    * Afecta: book e available
    */
@@ -83,15 +56,7 @@ export class BalanceSnapshotService {
     entryId?: string,
     journalId?: string,
   ): Promise<BalanceSnapshot> {
-    this.logger.log(
-      `Updating balance for hold on account ${balance.accountId}, amount: ${amount}`,
-    );
-
-    console.log('snapshot antes: ', balance);
-
     balance.applyHold(amount, entryId, journalId);
-
-    console.log('snapshot depois: ', balance);
 
     const savedSnapshot = await queryRunner.manager.save(balance);
 
@@ -115,11 +80,7 @@ export class BalanceSnapshotService {
       `Updating balance for hold release on account ${balance.accountId}, amount: ${amount}`,
     );
 
-    console.log('snapshot antes: ', balance);
-
     balance.applyHoldRelease(amount, entryId, journalId);
-
-    console.log('snapshot depois: ', balance);
 
     const savedSnapshot = await queryRunner.manager.save(balance);
 
@@ -143,11 +104,7 @@ export class BalanceSnapshotService {
       `Updating balance for hold capture on account ${balance.accountId}, amount: ${amount}`,
     );
 
-    console.log('snapshot antes: ', balance);
-
     balance.applyHoldCapture(amount, entryId, journalId);
-
-    console.log('snapshot depois: ', balance);
 
     const savedSnapshot = await queryRunner.manager.save(balance);
 

@@ -102,8 +102,6 @@ export class PixInternalUsecase {
         },
       });
 
-      console.log('transação: ', savedTransaction);
-
       const idempotency =
         idempotencyResult ??
         (await this.idempotencyService.create({

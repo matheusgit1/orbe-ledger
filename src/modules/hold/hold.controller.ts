@@ -17,7 +17,7 @@ export class HoldController {
   @Post('/release')
   async releaseHold() {
     return await this.holdService.releaseHold({
-      holdId: '6c6c5c60-cd4d-4852-8e31-5622a9842c8e',
+      holdId: '407b9ef8-834c-4ead-ac49-02aa416a4761',
       idempotencyKey: crypto.randomUUID(),
     });
   }
@@ -25,7 +25,7 @@ export class HoldController {
   @Post('/capture')
   async captureHold() {
     return await this.holdService.captureHold({
-      holdId: 'fd3ff1b2-5585-4ef1-8c3c-22dc340ad0e9',
+      holdId: '52f05dad-961a-49fd-b04a-e1b1cdbce28f',
       idempotencyKey: crypto.randomUUID(),
     });
   }

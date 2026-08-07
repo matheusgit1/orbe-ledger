@@ -30,8 +30,8 @@ export class CaptureHoldUsecase {
   async handler(body: {
     hold: Hold;
     payerAccount: Account;
-    receiverAccount: Account;
     revenueAccount: Account;
+    settlementAccount: Account;
     idempotencyKey: string;
     requestId: string;
     ledger: Ledger;
@@ -40,7 +40,7 @@ export class CaptureHoldUsecase {
     const {
       hold,
       payerAccount,
-      receiverAccount,
+      settlementAccount,
       idempotencyKey,
       revenueAccount,
       requestId,
@@ -49,15 +49,9 @@ export class CaptureHoldUsecase {
     this.logger.log('release hold usecase running');
     const { queryRunner } = await this.ormService.getQueryRunner();
     try {
-      // if (!hold.canRelease()) {
-      //   //atualizar para EXPIRED
-      //   throw new Error(
-      //     `Hold cannot be released. Status: ${hold.status}, Expires at: ${hold.expiresAt}`,
-      //   );
-      // }
 
       await this.accountService.lockAccountsByIds(queryRunner, [
-        receiverAccount.id,
+        settlementAccount.id,
       ]);
 
       const idempotencyResult = await this.idempotencyRules.validate({
@@ -70,7 +64,7 @@ export class CaptureHoldUsecase {
         amount: hold.amount,
         currencyId: hold.currencyId,
         originAccountId: payerAccount.id,
-        destinationAccountId: receiverAccount.id,
+        destinationAccountId: settlementAccount.id,
         correlationId: idempotencyKey,
         externalId: hold.id,
         metadata: {
@@ -95,7 +89,7 @@ export class CaptureHoldUsecase {
         }));
 
       // captura o hold
-      hold.capture();
+      hold.capture(hold.amount);
       const updatedHold = await this.holdService.update(queryRunner, hold);
 
       // Criar journal de release
@@ -107,8 +101,9 @@ export class CaptureHoldUsecase {
           description: 'capture fluxo hold',
           idempotencyKey: idempotencyKey,
           amount: hold.amount,
+          originalAccount: hold.account,
           payerAccount: payerAccount,
-          receiverAccount: receiverAccount,
+          receiverAccount: settlementAccount,
           revenueAccount: revenueAccount,
           requestId: body.requestId,
           hold: updatedHold,

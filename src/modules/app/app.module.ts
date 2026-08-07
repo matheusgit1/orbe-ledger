@@ -7,17 +7,15 @@ import { LoggingInterceptor } from '../../interceptors/logging.interceptor';
 import { ResponseInterceptor } from '../../interceptors/response.interceptor';
 import { TracingMiddleware } from '../../middlewares/tracing.middleware';
 import { EventEmitterModule } from '@nestjs/event-emitter';
-import { HealthModule } from '../health/health.module';
-import { PixModule } from '../pix/pix.module';
-import { DepositsModule } from '../deposits/deposits.module';
 import { HoldModule } from '../hold/hold.module';
+import { DepositsModule } from '../deposits/deposits.module';
+import { PixModule } from '../pix/pix.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     EventEmitterModule.forRoot({}),
     OrmModule,
-    HealthModule,
     PixModule,
     DepositsModule,
     HoldModule,

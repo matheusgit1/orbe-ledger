@@ -31,35 +31,21 @@ export class HoldService {
   async createHold(dto: { accountNumber: string; amount: number }) {
     const { hash } = this.request;
     try {
-      const [account, technicalAccount, revenueAccount, ledger, service] =
-        await Promise.all([
-          this.accountService.findByNumber(dto.accountNumber),
-          this.accountService.findByCode('HOLD-RESERVE'),
-          this.accountService.findByCode('REVENUE-HOLD'),
-          this.ledgerService.getLedgerByCode(LedgerCode.MAIN),
-          this.serviceService.getServiceByCode('SRV-HOLD'),
-        ]);
-      this.accountService.validateAccounts([
-        account,
-        technicalAccount,
-        revenueAccount,
+      const [account, technicalAccount, ledger, service] = await Promise.all([
+        this.accountService.findByNumber(dto.accountNumber),
+        this.accountService.findByCode('HOLD-RESERVE'),
+        this.ledgerService.getLedgerByCode(LedgerCode.MAIN),
+        this.serviceService.getServiceByCode('SRV-HOLD'),
       ]);
+      this.accountService.validateAccounts([account, technicalAccount]);
 
-      console.log(
-        'contas: ',
-        account,
-        technicalAccount,
-        revenueAccount,
-        ledger,
-      );
+      console.log('contas: ', account, technicalAccount, ledger);
       const response = await this.holdUsecase.handler({
         payerAccount: account,
         receiverAccount: technicalAccount,
-        revenueAccount: revenueAccount,
         idempotencyKey: hash,
         requestId: hash,
         amount: dto.amount,
-        tax: this.feeService.calculateNetAmount(service, dto.amount),
         ledger: ledger,
       });
       this.logger.log(`[${hash}] Hold criado: ${JSON.stringify(response)}`);
@@ -75,11 +61,10 @@ export class HoldService {
   async releaseHold(dto: { holdId: string; idempotencyKey: string }) {
     const { hash } = this.request;
     try {
-      const [hold, technicalAccount, ledger, service] = await Promise.all([
+      const [hold, technicalAccount, ledger] = await Promise.all([
         this.holdService.findById(dto.holdId),
         this.accountService.findByCode('HOLD-RESERVE'),
         this.ledgerService.getLedgerByCode(LedgerCode.MAIN),
-        this.serviceService.getServiceByCode('SRV-HOLD'),
       ]);
 
       const response = await this.releaseHoldUsecase.handler({
@@ -103,21 +88,28 @@ export class HoldService {
   async captureHold(dto: { holdId: string; idempotencyKey: string }) {
     const { hash } = this.request;
     try {
-      const [hold, technicalAccount, ledger, service, revenueAccount] =
-        await Promise.all([
-          this.holdService.findById(dto.holdId),
-          this.accountService.findByCode('HOLD-RESERVE'),
-          this.ledgerService.getLedgerByCode(LedgerCode.MAIN),
-          this.serviceService.getServiceByCode('SRV-HOLD'),
-          this.accountService.findByCode('REVENUE-HOLD'),
-        ]);
+      const [
+        hold,
+        technicalAccount,
+        ledger,
+        service,
+        revenueAccount,
+        settlementAccount,
+      ] = await Promise.all([
+        this.holdService.findById(dto.holdId),
+        this.accountService.findByCode('HOLD-RESERVE'),
+        this.ledgerService.getLedgerByCode(LedgerCode.MAIN),
+        this.serviceService.getServiceByCode('SRV-HOLD'),
+        this.accountService.findByCode('REVENUE-HOLD'),
+        this.accountService.findByCode('HOLD-SETTLEMENT'),
+      ]);
 
       const response = await this.captureHoldUsecase.handler({
         hold: hold,
         payerAccount: technicalAccount,
-        receiverAccount: hold.account,
         idempotencyKey: dto.idempotencyKey,
         revenueAccount: revenueAccount,
+        settlementAccount: settlementAccount,
         requestId: hash,
         ledger: ledger,
         tax: this.feeService.calculateNetAmount(service, hold.amount),

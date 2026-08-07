@@ -39,7 +39,6 @@ export class LedgerPosting {
       hold: Hold;
     },
   ) {
-    const accounts = [dto.receiverAccount, dto.payerAccount];
     const createdJournal = await this.journalService.createJournal(
       queryRunner,
       {
@@ -67,7 +66,7 @@ export class LedgerPosting {
             accountId: dto.receiverAccount.id,
             amount: dto.amount,
             side: EntrySide.CREDIT,
-            holdId: undefined,
+            holdId: dto.hold.id,
             description: dto.description,
             currencyId: dto.receiverAccount.currencyId,
             metadata: {},
@@ -76,47 +75,22 @@ export class LedgerPosting {
       },
     );
 
-    await this.auditService.createAudit(
-      AuditEntity.TRANSACTION,
-      dto.transaction.id,
-      AuditAction.UPDATE,
-      'SYSTEM',
-      dto.requestId,
-      {
-        amount: dto.amount,
-        payer: dto.payerAccount.id,
-        receiver: dto.receiverAccount.id,
-        idempotencyKey: dto.idempotencyKey,
-      },
-      {
-        transactionId: dto.transaction.id,
-        status: dto.transaction.status,
-        debitEntryId: createdJournal
-          .getDebitEntry()
-          .map((e) => e.id)
-          .join(','),
-        creditEntryId: createdJournal
-          .getCreditEntry()
-          .map((e) => e.id)
-          .join(','),
-      },
-    );
-
     //atualiza conta pagadora
     const payerBalance = await this.balanceSnapshot.getAvailableBalanceAndLock(
       queryRunner,
       dto.payerAccount.id,
     );
-    await this.balanceSnapshot.updateBalanceForHold(
-      queryRunner,
-      payerBalance,
-      dto.amount,
-      createdJournal.entries
-        .filter((e) => e.accountId === dto.payerAccount.id)
-        .map((e) => e.id)
-        .join(','),
-      createdJournal.id,
-    );
+    for (const entry of createdJournal.entries) {
+      if (entry.accountId === dto.payerAccount.id) {
+        await this.balanceSnapshot.updateBalanceForHold(
+          queryRunner,
+          payerBalance,
+          dto.amount,
+          entry.id,
+          createdJournal.id,
+        );
+      }
+    }
 
     //atualiza conta recebedora
     const receiverBalance =
@@ -269,6 +243,7 @@ export class LedgerPosting {
       description: string;
       idempotencyKey: string;
       amount: number;
+      originalAccount: Account;
       payerAccount: Account;
       receiverAccount: Account;
       revenueAccount: Account;
@@ -301,16 +276,7 @@ export class LedgerPosting {
           },
           {
             accountId: dto.receiverAccount.id,
-            amount: dto.amount - dto.tax,
-            side: EntrySide.CREDIT,
-            holdId: undefined,
-            description: dto.description,
-            currencyId: dto.receiverAccount.currencyId,
-            metadata: {},
-          },
-          {
-            accountId: dto.revenueAccount.id,
-            amount: parseFloat(Number(dto.tax).toFixed(2)),
+            amount: dto.amount,
             side: EntrySide.CREDIT,
             holdId: undefined,
             description: dto.description,
@@ -348,7 +314,21 @@ export class LedgerPosting {
       },
     );
 
-    //atualiza conta pagadora (technical account) - transferência normal
+    const originalBalance =
+      await this.balanceSnapshot.getAvailableBalanceAndLock(
+        queryRunner,
+        dto.originalAccount.id,
+      );
+
+    await this.balanceSnapshot.updateBalanceForCaptureHold(
+      queryRunner,
+      originalBalance,
+      dto.amount,
+      undefined,
+      createdJournal.id,
+    );
+
+    //atualiza conta pagadora (conta tecnica de reserva) - transferência normal
     const payerBalance = await this.balanceSnapshot.getAvailableBalanceAndLock(
       queryRunner,
       dto.payerAccount.id,
@@ -366,7 +346,7 @@ export class LedgerPosting {
       }
     }
 
-    //atualiza conta recebedora (payer original) - captura do hold
+    //atualiza conta recebedora (conta tecnica de liquidação) - captura do hold
     const receiverBalance =
       await this.balanceSnapshot.getAvailableBalanceAndLock(
         queryRunner,
@@ -374,10 +354,11 @@ export class LedgerPosting {
       );
     for (const entry of createdJournal.entries) {
       if (entry.accountId === dto.receiverAccount.id) {
-        await this.balanceSnapshot.updateBalanceForCaptureHold(
+        await this.balanceSnapshot.updateBalanceForTransfer(
           queryRunner,
           receiverBalance,
           dto.amount,
+          entry.isDebit(),
           entry.id,
           createdJournal.id,
         );
