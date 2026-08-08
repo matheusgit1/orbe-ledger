@@ -36,6 +36,7 @@ export interface CreateJournalOptions {
   metadata?: Record<string, any>;
   postedAt?: Date;
   entries?: Entry[];
+  status?: JournalStatus;
 }
 
 @Entity('journals')
@@ -160,8 +161,12 @@ export class Journal {
     return this.status === JournalStatus.REVERSED;
   }
 
+  isCancelled(): boolean {
+    return this.status === JournalStatus.CANCELLED;
+  }
+
   canBeReversed(): boolean {
-    return this.isPosted() && !this.isReversed();
+    return !this.isPosted() && !this.isReversed() && !this.isCancelled();
   }
 
   getTotalDebit(): number {
@@ -207,7 +212,7 @@ export class Journal {
     const journal = new Journal();
     journal.ledgerId = props.ledgerId;
     journal.journalNumber = props.journalNumber;
-    journal.status = JournalStatus.PENDING;
+    journal.status = props.status || JournalStatus.PENDING;
     journal.type = props.type;
     journal.description = props.description;
     journal.reference = props.reference;

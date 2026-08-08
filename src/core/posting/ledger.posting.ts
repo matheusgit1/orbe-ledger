@@ -3,6 +3,7 @@ import { QueryRunner } from 'typeorm';
 import { JournalService } from '../services/journal.service';
 import {
   EntrySide,
+  JournalStatus,
   JournalType,
 } from 'src/infra/database/common/enums/journal.enum';
 import { Account } from 'src/infra/database/entities/account.entity';
@@ -52,6 +53,7 @@ export class LedgerPosting {
         source: 'HOLD',
         createdBy: 'SYSTEM',
         metadata: {},
+        status: JournalStatus.PENDING,
         entries: [
           {
             accountId: dto.payerAccount.id,
@@ -144,6 +146,7 @@ export class LedgerPosting {
         causationId: dto.idempotencyKey,
         source: 'HOLD_RELEASE',
         createdBy: 'SYSTEM',
+        status: JournalStatus.POSTED,
         metadata: {},
         entries: [
           {
@@ -263,6 +266,7 @@ export class LedgerPosting {
         causationId: dto.idempotencyKey,
         source: 'HOLD_CAPTURE',
         createdBy: 'SYSTEM',
+        status: JournalStatus.POSTED,
         metadata: {},
         entries: [
           {

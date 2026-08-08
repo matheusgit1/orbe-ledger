@@ -9,7 +9,6 @@ import { DocUsecase } from './services/deposits/usecases/doc.usecase';
 import { CreateHoldUsecase } from './services/holds/create-hold.usecase';
 import { ReleaseHoldUsecase } from './services/holds/release-hold.usecase';
 import { CaptureHoldUsecase } from './services/holds/capture-hold.usecase';
-import { ChargebackUsecase } from './services/chargeback/chargeback.usecase';
 import { ChargebackModule } from '../chargeback/chargeback.module';
 
 const services = [
@@ -25,7 +24,7 @@ const services = [
   ReleaseHoldUsecase,
   CaptureHoldUsecase,
   //chargback
-  ChargebackUsecase,
+
 ];
 
 @Module({
