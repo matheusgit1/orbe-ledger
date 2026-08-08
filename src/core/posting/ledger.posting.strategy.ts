@@ -24,6 +24,10 @@ import {
   HoldReleasePostingArgs,
   HoldReleasePostingStrategy,
 } from './strategies/hold/hold-release-posting.strategy';
+import {
+  HoldCapturePostingArgs,
+  HoldCapturePostingStrategy,
+} from './strategies/hold/hold-capture-posting.strategy';
 
 interface LedgerPostingStrategyTypes {
   queryRunner: QueryRunner;
@@ -59,6 +63,11 @@ export interface LedgerPostingArgsForHoldReleaseStrategy extends LedgerPostingSt
   data: HoldReleasePostingArgs;
 }
 
+export interface LedgerPostingArgsForHoldCaptureStrategy extends LedgerPostingStrategyTypes {
+  type: 'HOLD_CAPTURE';
+  data: HoldCapturePostingArgs;
+}
+
 @Injectable()
 export class LedgerPostingStrategy {
   constructor(
@@ -68,6 +77,7 @@ export class LedgerPostingStrategy {
     private readonly docPostingStrategy: DocPostingStrategy,
     private readonly holdPostingStrategy: HoldPostingStrategy,
     private readonly holdReleasePostingStrategy: HoldReleasePostingStrategy,
+    private readonly holdCapturePostingStrategy: HoldCapturePostingStrategy,
   ) {}
 
   async runEstategy(
@@ -77,7 +87,8 @@ export class LedgerPostingStrategy {
       | LedgerPostingArgsForTedStrategy
       | LedgerPostingArgsForDocStrategy
       | LedgerPostingArgsForHoldStrategy
-      | LedgerPostingArgsForHoldReleaseStrategy,
+      | LedgerPostingArgsForHoldReleaseStrategy
+      | LedgerPostingArgsForHoldCaptureStrategy,
   ) {
     switch (args.type) {
       case 'PIX':
@@ -102,6 +113,10 @@ export class LedgerPostingStrategy {
           .execute();
       case 'HOLD_RELEASE':
         return await this.holdReleasePostingStrategy
+          .build(args.queryRunner, args.data)
+          .execute();
+      case 'HOLD_CAPTURE':
+        return await this.holdCapturePostingStrategy
           .build(args.queryRunner, args.data)
           .execute();
     }

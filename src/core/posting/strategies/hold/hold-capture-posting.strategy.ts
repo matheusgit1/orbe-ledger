@@ -1,82 +1,100 @@
 import { Injectable } from '@nestjs/common';
-import { QueryRunner } from 'typeorm';
-import { JournalService } from '../services/journal.service';
-import {
-  EntrySide,
-  JournalStatus,
-  JournalType,
-} from 'src/infra/database/common/enums/journal.enum';
+import { JournalService } from 'src/core/services/journal.service';
+import { AuditService } from 'src/core/services/audit.service';
+import { BalanceSnapshotService } from 'src/core/services/balance-snapshot.service';
 import { Account } from 'src/infra/database/entities/account.entity';
 import { Ledger } from 'src/infra/database/entities/ledger.entity';
-import { Transaction } from 'src/infra/database/entities/transaction.entity';
-import { AuditService } from '../services/audit.service';
+import { Hold } from 'src/infra/database/entities/hold.entity';
+import { QueryRunner } from 'typeorm';
+import {
+  EntrySide,
+  JournalType,
+  JournalStatus,
+} from 'src/infra/database/common/enums/journal.enum';
 import {
   AuditAction,
   AuditEntity,
 } from 'src/infra/database/common/enums/audit.enum';
-import { Hold } from 'src/infra/database/entities/hold.entity';
-import { BalanceSnapshotService } from '../services/balance-snapshot.service';
-import { BalanceSnapshot } from 'src/infra/database/entities/balance-snapshot.entity';
-import { LedgerPostingArgsForPixStrategy } from './ledger.posting.strategy';
+import { Transaction } from 'src/infra/database/entities/transaction.entity';
+
+export interface HoldCapturePostingArgs {
+  description: string;
+  originalAccount: Account;
+  payerAccount: Account;
+  receiverAccount: Account;
+  revenueAccount: Account;
+  ledger: Ledger;
+  idempotencyKey: string;
+  requestId: string;
+  amount: number;
+  tax: number;
+  hold: Hold;
+  transaction: Transaction;
+}
 
 @Injectable()
-export class LedgerPosting {
+export class HoldCapturePostingStrategy {
+  private queryRunner: QueryRunner;
+  private args: HoldCapturePostingArgs;
+
   constructor(
     private readonly journalService: JournalService,
     private readonly auditService: AuditService,
     private readonly balanceSnapshot: BalanceSnapshotService,
   ) {}
 
-  
+  build(queryRunner: QueryRunner, args: HoldCapturePostingArgs) {
+    this.queryRunner = queryRunner;
+    this.args = args;
+    return this;
+  }
 
-  async postHoldCapture(
-    queryRunner: QueryRunner,
-    dto: {
-      requestId: string;
-      ledger: Ledger;
-      transaction: Transaction;
-      description: string;
-      idempotencyKey: string;
-      amount: number;
-      originalAccount: Account;
-      payerAccount: Account;
-      receiverAccount: Account;
-      revenueAccount: Account;
-      tax: number;
-      hold: Hold;
-    },
-  ) {
+  async execute() {
+    const { queryRunner, args } = this;
+    const {
+      originalAccount,
+      payerAccount,
+      transaction,
+      receiverAccount,
+      revenueAccount,
+      ledger,
+      idempotencyKey,
+      requestId,
+      amount,
+      hold,
+      description,
+    } = args;
     const createdJournal = await this.journalService.createJournal(
       queryRunner,
       {
-        ledgerId: dto.ledger.id,
+        ledgerId: ledger.id,
         type: JournalType.CAPTURE,
-        description: dto.description,
-        reference: dto.idempotencyKey,
-        externalReference: dto.idempotencyKey,
-        correlationId: dto.transaction.id,
-        causationId: dto.idempotencyKey,
+        description: description,
+        reference: idempotencyKey,
+        externalReference: idempotencyKey,
+        correlationId: transaction.id,
+        causationId: idempotencyKey,
         source: 'HOLD_CAPTURE',
         createdBy: 'SYSTEM',
         status: JournalStatus.POSTED,
         metadata: {},
         entries: [
           {
-            accountId: dto.payerAccount.id,
-            amount: dto.amount,
+            accountId: payerAccount.id,
+            amount: amount,
             side: EntrySide.DEBIT,
-            holdId: dto.hold.id,
-            description: dto.description,
-            currencyId: dto.payerAccount.currencyId,
+            holdId: hold.id,
+            description: description,
+            currencyId: payerAccount.currencyId,
             metadata: {},
           },
           {
-            accountId: dto.receiverAccount.id,
-            amount: dto.amount,
+            accountId: receiverAccount.id,
+            amount: amount,
             side: EntrySide.CREDIT,
             holdId: undefined,
-            description: dto.description,
-            currencyId: dto.receiverAccount.currencyId,
+            description: description,
+            currencyId: receiverAccount.currencyId,
             metadata: {},
           },
         ],
@@ -85,20 +103,20 @@ export class LedgerPosting {
 
     await this.auditService.createAudit(
       AuditEntity.TRANSACTION,
-      dto.transaction.id,
+      transaction.id,
       AuditAction.UPDATE,
       'SYSTEM',
-      dto.requestId,
+      requestId,
       {
-        amount: dto.amount,
-        payer: dto.payerAccount.id,
-        receiver: dto.receiverAccount.id,
-        holdId: dto.hold.id,
-        idempotencyKey: dto.idempotencyKey,
+        amount: amount,
+        payer: payerAccount.id,
+        receiver: receiverAccount.id,
+        holdId: hold.id,
+        idempotencyKey: idempotencyKey,
       },
       {
-        transactionId: dto.transaction.id,
-        status: dto.transaction.status,
+        transactionId: transaction.id,
+        status: transaction.status,
         debitEntryId: createdJournal
           .getDebitEntry()
           .map((e) => e.id)
@@ -113,28 +131,28 @@ export class LedgerPosting {
     const originalBalance =
       await this.balanceSnapshot.getAvailableBalanceAndLock(
         queryRunner,
-        dto.originalAccount.id,
+        originalAccount.id,
       );
 
     await this.balanceSnapshot.updateBalanceForCaptureHold(
       queryRunner,
       originalBalance,
-      dto.amount,
+      amount,
       undefined,
       createdJournal.id,
     );
 
-    //atualiza conta pagadora (conta tecnica de reserva) - transferência normal
+    // atualiza conta pagadora (conta tecnica de reserva) - transferência normal
     const payerBalance = await this.balanceSnapshot.getAvailableBalanceAndLock(
       queryRunner,
-      dto.payerAccount.id,
+      payerAccount.id,
     );
     for (const entry of createdJournal.entries) {
-      if (entry.accountId === dto.payerAccount.id) {
+      if (entry.accountId === payerAccount.id) {
         await this.balanceSnapshot.updateBalanceForTransfer(
           queryRunner,
           payerBalance,
-          dto.amount,
+          amount,
           entry.isDebit(),
           entry.id,
           createdJournal.id,
@@ -142,18 +160,18 @@ export class LedgerPosting {
       }
     }
 
-    //atualiza conta recebedora (conta tecnica de liquidação) - captura do hold
+    // atualiza conta recebedora (conta tecnica de liquidação) - captura do hold
     const receiverBalance =
       await this.balanceSnapshot.getAvailableBalanceAndLock(
         queryRunner,
-        dto.receiverAccount.id,
+        receiverAccount.id,
       );
     for (const entry of createdJournal.entries) {
-      if (entry.accountId === dto.receiverAccount.id) {
+      if (entry.accountId === receiverAccount.id) {
         await this.balanceSnapshot.updateBalanceForTransfer(
           queryRunner,
           receiverBalance,
-          dto.amount,
+          amount,
           entry.isDebit(),
           entry.id,
           createdJournal.id,
@@ -161,18 +179,18 @@ export class LedgerPosting {
       }
     }
 
-    //atualiza conta de receita - transferência normal
+    // atualiza conta de receita - transferência normal
     const revenueBalance =
       await this.balanceSnapshot.getAvailableBalanceAndLock(
         queryRunner,
-        dto.revenueAccount.id,
+        revenueAccount.id,
       );
     for (const entry of createdJournal.entries) {
-      if (entry.accountId === dto.revenueAccount.id) {
+      if (entry.accountId === revenueAccount.id) {
         await this.balanceSnapshot.updateBalanceForTransfer(
           queryRunner,
           revenueBalance,
-          dto.amount,
+          amount,
           entry.isDebit(),
           entry.id,
           createdJournal.id,
@@ -182,7 +200,7 @@ export class LedgerPosting {
 
     return await this.journalService.registerJournal(
       queryRunner,
-      dto.requestId,
+      requestId,
       createdJournal,
     );
   }

@@ -14,7 +14,6 @@ import { TransactionService } from './services/transaction.service';
 import { EntryService } from './services/entry.service';
 import { CurrencyService } from './services/currency.service';
 import { LimiteService } from './services/limite.service';
-import { LedgerPosting } from './posting/ledger.posting';
 import { SagaService } from './services/saga.service';
 import { SagaStepService } from './services/saga-step.service';
 import { LedgerHealth } from './health/ledger.health';
@@ -38,7 +37,6 @@ const services = [
   EntryService,
   CurrencyService,
   LimiteService,
-  LedgerPosting,
   SagaService,
   SagaStepService,
   ServiceService,

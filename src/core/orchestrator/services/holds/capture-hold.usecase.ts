@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { LedgerPosting } from 'src/core/posting/ledger.posting';
+import { LedgerPostingStrategy } from 'src/core/posting/ledger.posting.strategy';
 import { IdempotencyRules } from 'src/core/rules/business/idempotency.rules';
 import { AccountsService } from 'src/core/services/accounts.service';
 import { HoldService } from 'src/core/services/hold.service';
@@ -23,7 +23,8 @@ export class CaptureHoldUsecase {
     private idempotencyService: IdempotencyService,
     private idempotencyRules: IdempotencyRules,
     private transactionService: TransactionService,
-    private ledgerPostingSerive: LedgerPosting,
+    // private ledgerPostingSerive: LedgerPosting,
+    private ledgerPostingStrategy: LedgerPostingStrategy,
     private holdService: HoldService,
   ) {}
 
@@ -49,7 +50,6 @@ export class CaptureHoldUsecase {
     this.logger.log('release hold usecase running');
     const { queryRunner } = await this.ormService.getQueryRunner();
     try {
-
       await this.accountService.lockAccountsByIds(queryRunner, [
         settlementAccount.id,
       ]);
@@ -93,9 +93,10 @@ export class CaptureHoldUsecase {
       const updatedHold = await this.holdService.update(queryRunner, hold);
 
       // Criar journal de release
-      const journal = await this.ledgerPostingSerive.postHoldCapture(
-        queryRunner,
-        {
+      const journal = await this.ledgerPostingStrategy.runEstategy({
+        type: 'HOLD_CAPTURE',
+        queryRunner: queryRunner,
+        data: {
           ledger: ledger,
           transaction: savedTransaction,
           description: 'capture fluxo hold',
@@ -109,7 +110,7 @@ export class CaptureHoldUsecase {
           hold: updatedHold,
           tax: body.tax,
         },
-      );
+      });
 
       await this.transactionService.complete(queryRunner, savedTransaction);
 

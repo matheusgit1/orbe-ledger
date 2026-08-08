@@ -1,5 +1,4 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { LedgerPosting } from 'src/core/posting/ledger.posting';
 import { LedgerPostingStrategy } from 'src/core/posting/ledger.posting.strategy';
 import { IdempotencyRules } from 'src/core/rules/business/idempotency.rules';
 import { AccountsService } from 'src/core/services/accounts.service';

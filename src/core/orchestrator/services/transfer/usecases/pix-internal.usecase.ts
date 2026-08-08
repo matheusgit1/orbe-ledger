@@ -28,8 +28,6 @@ import { TransferRules } from 'src/core/rules/business/transfer.rules';
 import { IdempotencyRules } from 'src/core/rules/business/idempotency.rules';
 import { Transaction } from 'src/infra/database/entities/transaction.entity';
 import { Journal } from 'src/infra/database/entities/journal.entity';
-import { LedgerPosting } from 'src/core/posting/ledger.posting';
-import { QueryRunner } from 'typeorm/browser';
 import { Ledger } from 'src/infra/database/entities/ledger.entity';
 import { OrmService } from 'src/infra/database/orm/orm.service';
 import { LedgerPostingStrategy } from 'src/core/posting/ledger.posting.strategy';
@@ -45,7 +43,6 @@ export class PixInternalUsecase {
     private readonly dataSource: DataSource,
     private readonly transferRules: TransferRules,
     private readonly idempotencyRules: IdempotencyRules,
-    private readonly ledgerPosting: LedgerPosting,
     private readonly ormService: OrmService,
     private readonly ledgerPostingStrategy: LedgerPostingStrategy,
   ) {}
