@@ -16,6 +16,10 @@ import {
   DocPostingArgs,
   DocPostingStrategy,
 } from './strategies/deposit/doc-posting.strategy';
+import {
+  HoldPostingArgs,
+  HoldPostingStrategy,
+} from './strategies/hold/hold-posting.strategy';
 
 interface LedgerPostingStrategyTypes {
   queryRunner: QueryRunner;
@@ -41,6 +45,11 @@ export interface LedgerPostingArgsForDocStrategy extends LedgerPostingStrategyTy
   data: DocPostingArgs;
 }
 
+export interface LedgerPostingArgsForHoldStrategy extends LedgerPostingStrategyTypes {
+  type: 'HOLD';
+  data: HoldPostingArgs;
+}
+
 @Injectable()
 export class LedgerPostingStrategy {
   constructor(
@@ -48,6 +57,7 @@ export class LedgerPostingStrategy {
     private readonly ticketPostingStrategy: TicketPostingStrategy,
     private readonly tedPostingStrategy: TedPostingStrategy,
     private readonly docPostingStrategy: DocPostingStrategy,
+    private readonly holdPostingStrategy: HoldPostingStrategy,
   ) {}
 
   async runEstategy(
@@ -55,7 +65,8 @@ export class LedgerPostingStrategy {
       | LedgerPostingArgsForPixStrategy
       | LedgerPostingArgsForTicketStrategy
       | LedgerPostingArgsForTedStrategy
-      | LedgerPostingArgsForDocStrategy,
+      | LedgerPostingArgsForDocStrategy
+      | LedgerPostingArgsForHoldStrategy,
   ) {
     switch (args.type) {
       case 'PIX':
@@ -72,6 +83,10 @@ export class LedgerPostingStrategy {
           .execute();
       case 'DOC':
         return await this.docPostingStrategy
+          .build(args.queryRunner, args.data)
+          .execute();
+      case 'HOLD':
+        return await this.holdPostingStrategy
           .build(args.queryRunner, args.data)
           .execute();
     }

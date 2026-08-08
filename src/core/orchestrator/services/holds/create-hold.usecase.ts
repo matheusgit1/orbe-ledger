@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { LedgerPosting } from 'src/core/posting/ledger.posting';
+import { LedgerPostingStrategy } from 'src/core/posting/ledger.posting.strategy';
 import { IdempotencyRules } from 'src/core/rules/business/idempotency.rules';
 import { TransferRules } from 'src/core/rules/business/transfer.rules';
 import { AccountsService } from 'src/core/services/accounts.service';
@@ -26,7 +27,8 @@ export class CreateHoldUsecase {
     private idempotencyRules: IdempotencyRules,
     private transactionService: TransactionService,
     private transferRules: TransferRules,
-    private ledgerPostingSerive: LedgerPosting,
+    // private ledgerPostingSerive: LedgerPosting,
+    private ledgerPostingStrategy: LedgerPostingStrategy,
     private holdService: HoldService,
   ) {}
 
@@ -98,16 +100,20 @@ export class CreateHoldUsecase {
         },
       });
 
-      const journal = await this.ledgerPostingSerive.postHold(queryRunner, {
-        ledger: body.ledger,
-        transaction: savedTransaction,
-        description: 'aprisionamento fluxo hold',
-        idempotencyKey: body.idempotencyKey,
-        amount: body.amount,
-        payerAccount: body.payerAccount,
-        receiverAccount: body.receiverAccount,
-        requestId: body.requestId,
-        hold: hold,
+      const journal = await this.ledgerPostingStrategy.runEstategy({
+        type: 'HOLD',
+        queryRunner: queryRunner,
+        data: {
+          ledger: body.ledger,
+          transaction: savedTransaction,
+          description: 'aprisionamento fluxo hold',
+          idempotencyKey: body.idempotencyKey,
+          amount: body.amount,
+          payerAccount: body.payerAccount,
+          receiverAccount: body.receiverAccount,
+          requestId: body.requestId,
+          hold: hold,
+        },
       });
 
       await this.transactionService.complete(queryRunner, savedTransaction);

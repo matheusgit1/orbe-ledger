@@ -6,6 +6,7 @@ import { LedgerPostingStrategy } from './ledger.posting.strategy';
 import { TicketPostingStrategy } from './strategies/deposit/ticket-posting.strategy';
 import { TedPostingStrategy } from './strategies/deposit/ted-posting.strategy';
 import { DocPostingStrategy } from './strategies/deposit/doc-posting.strategy';
+import { HoldPostingStrategy } from './strategies/hold/hold-posting.strategy';
 
 const services = [
   LedgerPosting,
@@ -13,7 +14,8 @@ const services = [
   PixPostingUsecase,
   TicketPostingStrategy,
   TedPostingStrategy,
-  DocPostingStrategy
+  DocPostingStrategy,
+  HoldPostingStrategy
 ];
 
 @Module({
