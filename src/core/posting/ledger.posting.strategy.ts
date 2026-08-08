@@ -8,6 +8,10 @@ import {
   TicketPostingArgs,
   TicketPostingStrategy,
 } from './strategies/deposit/ticket-posting.strategy';
+import {
+  TedPostingArgs,
+  TedPostingStrategy,
+} from './strategies/deposit/ted-posting.strategy';
 
 interface LedgerPostingStrategyTypes {
   queryRunner: QueryRunner;
@@ -23,15 +27,24 @@ export interface LedgerPostingArgsForTicketStrategy extends LedgerPostingStrateg
   data: TicketPostingArgs;
 }
 
+export interface LedgerPostingArgsForTedStrategy extends LedgerPostingStrategyTypes {
+  type: 'TED';
+  data: TedPostingArgs;
+}
+
 @Injectable()
 export class LedgerPostingStrategy {
   constructor(
     private readonly pixPostingUsecase: PixPostingUsecase,
     private readonly ticketPostingStrategy: TicketPostingStrategy,
+    private readonly tedPostingStrategy: TedPostingStrategy,
   ) {}
 
   async runEstategy(
-    args: LedgerPostingArgsForPixStrategy | LedgerPostingArgsForTicketStrategy,
+    args:
+      | LedgerPostingArgsForPixStrategy
+      | LedgerPostingArgsForTicketStrategy
+      | LedgerPostingArgsForTedStrategy,
   ) {
     switch (args.type) {
       case 'PIX':
@@ -40,6 +53,10 @@ export class LedgerPostingStrategy {
           .execute();
       case 'TICKET':
         return await this.ticketPostingStrategy
+          .build(args.queryRunner, args.data)
+          .execute();
+      case 'TED':
+        return await this.tedPostingStrategy
           .build(args.queryRunner, args.data)
           .execute();
     }

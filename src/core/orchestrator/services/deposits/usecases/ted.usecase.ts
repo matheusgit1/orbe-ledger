@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { LedgerPosting } from 'src/core/posting/ledger.posting';
+import { LedgerPostingStrategy } from 'src/core/posting/ledger.posting.strategy';
 import { IdempotencyRules } from 'src/core/rules/business/idempotency.rules';
 import { AccountsService } from 'src/core/services/accounts.service';
 import { AuditService } from 'src/core/services/audit.service';
@@ -25,6 +26,7 @@ export class TedUsecase {
     private idempotencyService: IdempotencyService,
     private ledgerPostingSerive: LedgerPosting,
     private auditService: AuditService,
+    private readonly ledgerPostingStrategy: LedgerPostingStrategy,
   ) {}
 
   async handler(body: {
@@ -78,17 +80,22 @@ export class TedUsecase {
           entityId: savedTransaction.id,
         }));
 
-      const journal = await this.ledgerPostingSerive.postTed(queryRunner, {
-        ledger: body.ledger,
-        transaction: savedTransaction,
-        description: 'Liquidação via ted',
-        idempotencyKey: body.idempotencyKey,
-        amount: body.amount,
-        tax: body.tax,
-        payerAccount: body.payerAccount,
-        receiverAccount: body.receiverAccount,
-        revenueAccount: body.revenueAccount,
-        requestId: body.requestId,
+      const journal = await this.ledgerPostingStrategy.runEstategy({
+        queryRunner,
+        type: 'TED',
+        data: {
+          ledger: body.ledger,
+          transaction: savedTransaction,
+          description: 'Liquidação via ted',
+          idempotencyKey: body.idempotencyKey,
+          amount: body.amount,
+          tax: body.tax,
+          payerAccount: body.payerAccount,
+          receiverAccount: body.receiverAccount,
+          revenueAccount: body.revenueAccount,
+          requestId: body.requestId,
+          service: body.service,
+        },
       });
 
       await this.transactionService.complete(queryRunner, savedTransaction);

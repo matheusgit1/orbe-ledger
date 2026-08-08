@@ -24,8 +24,6 @@ export class TicketUsecase {
     private idempotencyRules: IdempotencyRules,
     private transactionService: TransactionService,
     private idempotencyService: IdempotencyService,
-    private ledgerPostingSerive: LedgerPosting,
-    private auditService: AuditService,
     private readonly ledgerPostingStrategy: LedgerPostingStrategy,
   ) {}
 
