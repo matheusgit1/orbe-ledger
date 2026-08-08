@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { LedgerPosting } from 'src/core/posting/ledger.posting';
+import { LedgerPostingStrategy } from 'src/core/posting/ledger.posting.strategy';
 import { IdempotencyRules } from 'src/core/rules/business/idempotency.rules';
 import { AccountsService } from 'src/core/services/accounts.service';
 import { HoldService } from 'src/core/services/hold.service';
@@ -23,7 +24,8 @@ export class ReleaseHoldUsecase {
     private idempotencyService: IdempotencyService,
     private idempotencyRules: IdempotencyRules,
     private transactionService: TransactionService,
-    private ledgerPostingSerive: LedgerPosting,
+    // private ledgerPostingSerive: LedgerPosting,
+    private ledgerPostingStrategy: LedgerPostingStrategy,
     private holdService: HoldService,
   ) {}
 
@@ -96,9 +98,10 @@ export class ReleaseHoldUsecase {
       const updatedHold = await this.holdService.update(queryRunner, hold);
 
       // Criar journal de release
-      const journal = await this.ledgerPostingSerive.postHoldRelease(
-        queryRunner,
-        {
+      const journal = await this.ledgerPostingStrategy.runEstategy({
+        type: 'HOLD_RELEASE',
+        queryRunner: queryRunner,
+        data: {
           ledger: ledger,
           transaction: savedTransaction,
           description: 'liberação fluxo hold',
@@ -109,7 +112,7 @@ export class ReleaseHoldUsecase {
           requestId: body.requestId,
           hold: updatedHold,
         },
-      );
+      });
 
       await this.transactionService.complete(queryRunner, savedTransaction);
 
