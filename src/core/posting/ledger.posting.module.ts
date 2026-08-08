@@ -5,13 +5,15 @@ import { PixPostingUsecase } from './strategies/pix/pix-posting.strategy';
 import { LedgerPostingStrategy } from './ledger.posting.strategy';
 import { TicketPostingStrategy } from './strategies/deposit/ticket-posting.strategy';
 import { TedPostingStrategy } from './strategies/deposit/ted-posting.strategy';
+import { DocPostingStrategy } from './strategies/deposit/doc-posting.strategy';
 
 const services = [
   LedgerPosting,
   LedgerPostingStrategy,
   PixPostingUsecase,
   TicketPostingStrategy,
-  TedPostingStrategy
+  TedPostingStrategy,
+  DocPostingStrategy
 ];
 
 @Module({
