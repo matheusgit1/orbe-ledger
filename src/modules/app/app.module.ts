@@ -10,6 +10,7 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
 import { HoldModule } from '../hold/hold.module';
 import { DepositsModule } from '../deposits/deposits.module';
 import { PixModule } from '../pix/pix.module';
+import { ChargebackModule } from '../chargeback/chargeback.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { PixModule } from '../pix/pix.module';
     PixModule,
     DepositsModule,
     HoldModule,
+    ChargebackModule
   ],
   controllers: [],
   providers: [
