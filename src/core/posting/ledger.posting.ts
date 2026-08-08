@@ -17,6 +17,7 @@ import {
 import { Hold } from 'src/infra/database/entities/hold.entity';
 import { BalanceSnapshotService } from '../services/balance-snapshot.service';
 import { BalanceSnapshot } from 'src/infra/database/entities/balance-snapshot.entity';
+import { LedgerPostingArgsForPixStrategy } from './ledger.posting.strategy';
 
 @Injectable()
 export class LedgerPosting {

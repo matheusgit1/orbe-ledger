@@ -8,7 +8,6 @@ import { LedgerService } from 'src/core/services/ledger.service';
 import { LedgerCode } from 'src/infra/database/common/enums/ledger.enum';
 import { AccountsService } from 'src/core/services/accounts.service';
 import { PixInternalUsecase } from 'src/core/orchestrator/services/transfer/usecases/pix-internal.usecase';
-import { PixExternalUsecase } from 'src/core/orchestrator/services/transfer/usecases/pix-external.usecase';
 
 @Injectable()
 export class PixService {
@@ -19,7 +18,6 @@ export class PixService {
     private readonly ledgerService: LedgerService,
     private readonly dataSource: DataSource,
     private readonly pixInternalUsecase: PixInternalUsecase,
-    private readonly pixExternalUsecase: PixExternalUsecase,
   ) {}
 
   private async getQueryRunner() {
@@ -65,37 +63,6 @@ export class PixService {
       );
 
       return this.buildResponse(response);
-    } catch (err) {
-      await queryRunner.rollbackTransaction();
-      this.logger.error(
-        `[${hash}] Erro na transferência PIX: ${JSON.stringify(err)}`,
-      );
-      throw err;
-    } finally {
-      await queryRunner.release();
-    }
-  }
-
-  async pixExternal(body: PixRequestDto) {
-    const { hash, queryRunner } = await this.getQueryRunner();
-
-    try {
-      const [payerAccount] = await Promise.all([
-        this.accountService.findById(queryRunner, body.originAccountId),
-      ]);
-
-      if (!payerAccount) {
-        throw new Error(`Conta origem ${body.originAccountId} não encontrada`);
-      }
-
-      await this.pixExternalUsecase.handler({
-        accountOrigin: payerAccount,
-        idempotencyKey: body.idempotencyKey,
-        requestId: hash,
-        amount: body.amount,
-        pixKey: body.pixKey,
-        description: body.description,
-      });
     } catch (err) {
       await queryRunner.rollbackTransaction();
       this.logger.error(
