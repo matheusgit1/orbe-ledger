@@ -63,4 +63,14 @@ export class TaxesService {
     this.logger.log(`Soft deleting tax with id: ${id}`);
     return await this.taxService.softDeleteTax(id);
   }
+
+  async associateTaxWithService(serviceId: string, taxId: string) {
+    this.logger.log(`Associating tax ${taxId} with service ${serviceId}`);
+    return await this.taxService.associateTaxWithService(taxId, serviceId);
+  }
+
+  async dissociateTaxFromService(serviceId: string, taxId: string) {
+    this.logger.log(`Dissociating tax ${taxId} from service ${serviceId}`);
+    return await this.taxService.dissociateTaxFromService(taxId, serviceId);
+  }
 }

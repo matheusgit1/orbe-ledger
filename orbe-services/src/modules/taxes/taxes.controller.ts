@@ -11,6 +11,7 @@ import {
 import { TaxesService } from './taxes.service';
 import { CreateTaxDto } from './dto/create-tax.dto';
 import { UpdateTaxDto } from './dto/update-tax.dto';
+import { AssociateTaxDto } from './dto/associate-tax.dto';
 import { IsOptional, IsNumber } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
@@ -59,5 +60,21 @@ export class TaxesController {
   @Delete(':id')
   async remove(@Param('id') id: string) {
     return await this.taxesService.remove(id);
+  }
+
+  @Post('associate')
+  async associateTaxWithService(@Body() associateTaxDto: AssociateTaxDto) {
+    return await this.taxesService.associateTaxWithService(
+      associateTaxDto.serviceId,
+      associateTaxDto.taxId,
+    );
+  }
+
+  @Post('dissociate')
+  async dissociateTaxFromService(@Body() associateTaxDto: AssociateTaxDto) {
+    return await this.taxesService.dissociateTaxFromService(
+      associateTaxDto.serviceId,
+      associateTaxDto.taxId,
+    );
   }
 }

@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { CreateTaxOptions, Tax } from 'src/infra/database/entities/tax.entity';
+import { Service } from 'src/infra/database/entities/service.entity';
 import { Repository } from 'typeorm';
 
 @Injectable()
@@ -8,6 +9,8 @@ export class TaxService {
   constructor(
     @InjectRepository(Tax)
     private readonly taxRepository: Repository<Tax>,
+    @InjectRepository(Service)
+    private readonly serviceRepository: Repository<Service>,
   ) {}
 
   async createTax(options: CreateTaxOptions): Promise<Tax> {
@@ -80,5 +83,48 @@ export class TaxService {
         isActive: true,
       },
     });
+  }
+
+  async associateTaxWithService(
+    taxId: string,
+    serviceId: string,
+  ): Promise<Tax> {
+    const tax = await this.taxRepository.findOneOrFail({
+      where: { id: taxId },
+      relations: { services: true },
+    });
+
+    const service = await this.serviceRepository.findOneOrFail({
+      where: { id: serviceId },
+    });
+
+    if (!tax.services) {
+      tax.services = [];
+    }
+
+    const isAlreadyAssociated = tax.services.some((s) => s.id === serviceId);
+    if (isAlreadyAssociated) {
+      return tax;
+    }
+
+    tax.services.push(service);
+    return await this.taxRepository.save(tax);
+  }
+
+  async dissociateTaxFromService(
+    taxId: string,
+    serviceId: string,
+  ): Promise<Tax> {
+    const tax = await this.taxRepository.findOneOrFail({
+      where: { id: taxId },
+      relations: { services: true },
+    });
+
+    if (!tax.services) {
+      return tax;
+    }
+
+    tax.services = tax.services.filter((s) => s.id !== serviceId);
+    return await this.taxRepository.save(tax);
   }
 }
