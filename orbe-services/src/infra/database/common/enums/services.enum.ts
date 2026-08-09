@@ -1,0 +1,11 @@
+export enum ServicesAvailable {
+  PIX = 'PIX',
+  TED = 'TED',
+  DOC = 'DOC',
+  BOLETO = 'BOLETO',
+  CASH = 'CASH',
+  INTERNAL_TRANSFER = 'INTERNAL_TRANSFER',
+  ADJUSTMENT = 'ADJUSTMENT',
+  HOLD = 'HOLD',
+  DEFAULT = 'DEFAULT'
+}
