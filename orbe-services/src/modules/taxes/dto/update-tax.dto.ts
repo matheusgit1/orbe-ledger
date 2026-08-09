@@ -1,9 +1,9 @@
 import { PartialType } from '@nestjs/mapped-types';
-import { CreateServiceDto } from './create-service.dto';
+import { CreateTaxDto } from './create-tax.dto';
 import { IsString, IsUUID } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
-export class UpdateServiceDto extends PartialType(CreateServiceDto) {
+export class UpdateTaxDto extends PartialType(CreateTaxDto) {
   // @IsString()
   // @IsUUID()
   // @ApiProperty()

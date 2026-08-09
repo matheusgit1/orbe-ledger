@@ -27,9 +27,18 @@ export class ServicesService {
     });
   }
 
-  async findAll(take?: number, offset?: number) {
+  async findAll(take: number = 10, offset: number = 0) {
     this.logger.log('Finding all services');
-    return await this.serviceService.findAllWithPagination(take, offset);
+    const [services, total] = await Promise.all([
+      this.serviceService.findAllWithPagination(take, offset),
+      this.serviceService.countActiveServices(),
+    ]);
+    return {
+      services: services,
+      total,
+      pages: Math.ceil(total / (take || 10)),
+      page: Math.ceil(offset / (take || 10)) + 1,
+    };
   }
 
   async findOne(id: number) {

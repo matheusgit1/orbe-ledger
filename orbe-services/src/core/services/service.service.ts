@@ -39,6 +39,9 @@ export class ServiceService {
       },
       take,
       skip: offset,
+      order: {
+        createdAt: 'ASC',
+      },
     });
   }
 
@@ -71,5 +74,13 @@ export class ServiceService {
 
     service.isActive = false;
     return await this.serviceRepository.save(service);
+  }
+
+  async countActiveServices(): Promise<number> {
+    return await this.serviceRepository.count({
+      where: {
+        isActive: true,
+      },
+    });
   }
 }
