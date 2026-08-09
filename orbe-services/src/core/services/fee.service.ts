@@ -7,15 +7,15 @@ export class FeeService {
   constructor() {}
 
   private calculateFee(service: Service, amount: number): number {
-    if (!service.tax || !service.tax.isActive) {
+    if (!service.taxes || !service.taxes[0].isActive) {
       return 0;
     }
 
-    switch (service.tax.type) {
+    switch (service.taxes[0].type) {
       case TaxType.FIXED:
-        return service.tax.amount;
+        return service.taxes[0].amount;
       case TaxType.PERCENTAGE:
-        const percentage = service.tax.percentage || 0;
+        const percentage = service.taxes[0].percentage || 0;
         return (amount * percentage) / 100;
       default:
         return 0;

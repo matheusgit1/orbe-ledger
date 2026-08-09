@@ -4,7 +4,7 @@ import {
   PrimaryGeneratedColumn,
   CreateDateColumn,
   UpdateDateColumn,
-  OneToMany,
+  ManyToMany,
   Index,
   VersionColumn,
 } from 'typeorm';
@@ -75,7 +75,7 @@ export class Tax {
   updatedAt: Date;
 
   // Relationships
-  @OneToMany(() => Service, (service) => service.tax)
+  @ManyToMany(() => Service, (service) => service.taxes)
   services: Service[];
 
   // Domain methods

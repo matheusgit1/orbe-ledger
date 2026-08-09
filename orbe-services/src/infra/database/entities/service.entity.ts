@@ -4,8 +4,8 @@ import {
   PrimaryGeneratedColumn,
   CreateDateColumn,
   UpdateDateColumn,
-  ManyToOne,
-  JoinColumn,
+  ManyToMany,
+  JoinTable,
   Index,
   VersionColumn,
 } from 'typeorm';
@@ -17,7 +17,7 @@ export interface CreateServiceOptions {
   name: string;
   description?: string;
   type: ServicesAvailable;
-  taxId?: string;
+  taxes?: Tax[];
   isActive?: boolean;
   metadata?: Record<string, any>;
 }
@@ -25,7 +25,7 @@ export interface CreateServiceOptions {
 @Entity('services')
 @Index(['code'], { unique: true })
 @Index(['isActive'])
-@Index(['taxId'])
+@Index(['type'])
 export class Service {
   protected constructor() {}
 
@@ -48,8 +48,6 @@ export class Service {
   })
   type: ServicesAvailable;
 
-  @Column({ type: 'uuid', name: 'tax_id', nullable: true })
-  taxId: string | null;
 
   @Column({ type: 'boolean', default: true, name: 'is_active' })
   isActive: boolean;
@@ -67,9 +65,13 @@ export class Service {
   updatedAt: Date;
 
   // Relationships
-  @ManyToOne(() => Tax, (tax) => tax.services, { nullable: true })
-  @JoinColumn({ name: 'tax_id' })
-  tax: Tax | null;
+  @ManyToMany(() => Tax, (tax) => tax.services, { nullable: true })
+  @JoinTable({
+    name: 'service_taxes',
+    joinColumn: { name: 'service_id' },
+    inverseJoinColumn: { name: 'tax_id' },
+  })
+  taxes: Tax[];
 
   // Domain methods
   static create(options: CreateServiceOptions): Service {
@@ -78,7 +80,7 @@ export class Service {
     service.name = options.name;
     service.description = options.description;
     service.type = options.type;
-    service.taxId = options.taxId || null;
+    service.taxes = options.taxes || [];
     service.isActive = options.isActive ?? true;
     service.metadata = options.metadata || {};
     return service;

@@ -24,8 +24,18 @@ export class ServiceService {
         code,
       },
       relations: {
-        tax: true,
+        taxes: true,
       },
+    });
+  }
+
+  async findAllWithPagination(take: number = 10, offset: number = 0) {
+    return await this.serviceRepository.find({
+      relations: {
+        taxes: true,
+      },
+      take,
+      skip: offset,
     });
   }
 }
