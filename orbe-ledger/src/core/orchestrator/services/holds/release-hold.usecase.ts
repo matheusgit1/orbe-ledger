@@ -47,13 +47,7 @@ export class ReleaseHoldUsecase {
     this.logger.log('release hold usecase running');
     const { queryRunner } = await this.ormService.getQueryRunner();
     try {
-      // if (!hold.canRelease()) {
-      //   //atualizar para EXPIRED
-      //   throw new Error(
-      //     `Hold cannot be released. Status: ${hold.status}, Expires at: ${hold.expiresAt}`,
-      //   );
-      // }
-
+      
       await this.accountService.lockAccountsByIds(queryRunner, [
         receiverAccount.id,
       ]);

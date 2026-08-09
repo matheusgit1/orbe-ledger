@@ -10,6 +10,7 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
 import { HoldModule } from '../hold/hold.module';
 import { DepositsModule } from '../deposits/deposits.module';
 import { PixModule } from '../pix/pix.module';
+import { LedgerConsistenceModule } from '../ledger-consistence/ledger-consistence.module';
 
 
 @Module({
@@ -20,6 +21,7 @@ import { PixModule } from '../pix/pix.module';
     PixModule,
     DepositsModule,
     HoldModule,
+    LedgerConsistenceModule
   ],
   controllers: [],
   providers: [
