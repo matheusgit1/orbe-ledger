@@ -31,6 +31,9 @@ export class ServiceService {
 
   async findAllWithPagination(take: number = 10, offset: number = 0) {
     return await this.serviceRepository.find({
+      where: {
+        isActive: true,
+      },
       relations: {
         taxes: true,
       },
@@ -57,6 +60,16 @@ export class ServiceService {
     if (options.isActive !== undefined) service.isActive = options.isActive;
     if (options.metadata !== undefined) service.metadata = options.metadata;
 
+    return await this.serviceRepository.save(service);
+  }
+
+  async softDeleteService(id: string): Promise<Service> {
+    const service = await this.serviceRepository.findOneOrFail({
+      where: { id },
+      relations: { taxes: true },
+    });
+
+    service.isActive = false;
     return await this.serviceRepository.save(service);
   }
 }

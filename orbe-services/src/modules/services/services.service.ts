@@ -47,7 +47,8 @@ export class ServicesService {
     });
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} service`;
+  async remove(id: string) {
+    this.logger.log(`Soft deleting service with id: ${id}`);
+    return await this.serviceService.softDeleteService(id);
   }
 }
