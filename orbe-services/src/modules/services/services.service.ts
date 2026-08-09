@@ -36,8 +36,15 @@ export class ServicesService {
     return `This action returns a #${id} service`;
   }
 
-  update(id: number, updateServiceDto: UpdateServiceDto) {
-    return `This action updates a #${id} service`;
+  async update(id: string, updateServiceDto: UpdateServiceDto) {
+    this.logger.log(`Updating service with id: ${id}`);
+    return await this.serviceService.updateService(id, {
+      code: updateServiceDto.code,
+      name: updateServiceDto.name,
+      description: updateServiceDto.description,
+      type: updateServiceDto.type,
+      metadata: updateServiceDto.metadata,
+    });
   }
 
   remove(id: number) {

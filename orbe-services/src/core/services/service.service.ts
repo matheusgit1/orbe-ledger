@@ -38,4 +38,25 @@ export class ServiceService {
       skip: offset,
     });
   }
+
+  async updateService(
+    id: string,
+    options: Partial<CreateServiceOptions>,
+  ): Promise<Service> {
+    const service = await this.serviceRepository.findOneOrFail({
+      where: { id },
+      relations: { taxes: true },
+    });
+
+    if (options.code !== undefined) service.code = options.code;
+    if (options.name !== undefined) service.name = options.name;
+    if (options.description !== undefined)
+      service.description = options.description;
+    if (options.type !== undefined) service.type = options.type;
+    if (options.taxes !== undefined) service.taxes = options.taxes;
+    if (options.isActive !== undefined) service.isActive = options.isActive;
+    if (options.metadata !== undefined) service.metadata = options.metadata;
+
+    return await this.serviceRepository.save(service);
+  }
 }

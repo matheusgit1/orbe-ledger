@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Patch,
+  Post,
+  Query,
+  Param,
+} from '@nestjs/common';
 import { Payload } from '@nestjs/microservices';
 import { ServicesService } from './services.service';
 import { CreateServiceDto } from './dto/create-service.dto';
@@ -37,5 +45,13 @@ export class ServicesController {
       pagination.take || 10,
       pagination.offset || 0,
     );
+  }
+
+  @Patch(':id')
+  async update(
+    @Param('id') id: string,
+    @Body() updateServiceDto: UpdateServiceDto,
+  ) {
+    return await this.servicesService.update(id, updateServiceDto);
   }
 }
