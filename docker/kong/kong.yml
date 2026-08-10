@@ -1,0 +1,38 @@
+_format_version: "3.0"
+
+services:
+  - name: orbe-ledger
+    url: http://orbe-ledger:3000
+    routes:
+      - name: orbe-ledger-route
+        paths:
+          - /orbe-ledger
+        strip_path: false
+      - name: orbe-ledger-health-route
+        paths:
+          - /orbe-ledger/health
+        strip_path: false
+
+  - name: orbe-services
+    url: http://orbe-services:3001
+    routes:
+      - name: orbe-services-route
+        paths:
+          - /orbe-services
+        strip_path: false
+      - name: orbe-services-health-route
+        paths:
+          - /orbe-services/health
+        strip_path: false
+
+  # - name: spi-simulator
+  #   url: http://spi-simulator:3002
+  #   routes:
+  #     - name: spi-simulator-route
+  #       paths:
+  #         - /spi-simulator
+  #       strip_path: false
+  #     - name: spi-simulator-health-route
+  #       paths:
+  #         - /spi-simulator/health
+  #       strip_path: false
