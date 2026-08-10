@@ -29,7 +29,6 @@ async function bootstrap(): Promise<void> {
   app.setGlobalPrefix('orbe-services');
   app.enableVersioning({
     type: VersioningType.URI,
-    // defaultVersion: 'v1',
   });
 
   const config = new DocumentBuilder()

@@ -31,7 +31,6 @@ async function bootstrap(): Promise<void> {
     type: VersioningType.URI,
   });
 
-
   const config = new DocumentBuilder()
     .setTitle('Orbe Ledger API')
     .setDescription('the public ledger api')

@@ -41,6 +41,11 @@ export class ServicesService {
     };
   }
 
+  async findByCode(code: string) {
+    this.logger.log(`Finding service by code: ${code}`);
+    return await this.serviceService.getServiceByCode(code);
+  }
+
   async findOne(id: number) {
     return `This action returns a #${id} service`;
   }

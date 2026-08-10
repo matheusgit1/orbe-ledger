@@ -48,6 +48,11 @@ export class ServicesController {
     );
   }
 
+  @Get(':code')
+  async findByCode(@Param('code') code: string) {
+    return await this.servicesService.findByCode(code);
+  }
+
   @Patch(':id')
   async update(
     @Param('id') id: string,

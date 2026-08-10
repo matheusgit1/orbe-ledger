@@ -9,12 +9,14 @@ import { TracingMiddleware } from '../../middlewares/tracing.middleware';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ServicesModule } from '../services/services.module';
 import { TaxesModule } from '../taxes/taxes.module';
+import { HealthModule } from '../health/health.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     EventEmitterModule.forRoot({}),
     OrmModule,
+    HealthModule,
     ServicesModule,
     TaxesModule
   ],
