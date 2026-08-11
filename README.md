@@ -372,6 +372,70 @@ kubectl delete serviceaccount dashboard-admin-sa
 kubectl delete clusterrolebinding dashboard-admin-sa
 ```
 
+## 🔧 Solução de Problemas
+
+### Problema: Erro de volume do PostgreSQL
+
+Se você encontrar um erro relacionado ao formato de dados do PostgreSQL em versões 18+:
+
+**Windows:**
+
+```powershell
+.\fix-postgres-volume.ps1
+```
+
+**Linux/Mac:**
+
+```bash
+chmod +x fix-postgres-volume.sh
+./fix-postgres-volume.sh
+```
+
+Este script:
+
+1. Remove o deployment do PostgreSQL
+2. Remove o PVC existente (isso apaga os dados)
+3. Recria o PostgreSQL com a configuração correta de volume
+4. Aguarda o PostgreSQL ficar pronto
+
+**Nota**: Isso irá apagar todos os dados existentes do PostgreSQL. Use apenas se você não tiver dados importantes ou se estiver em ambiente de desenvolvimento.
+
+### Ver status dos pods
+
+```powershell
+# Ver todos os pods
+kubectl get pods
+
+# Ver pods com mais detalhes
+kubectl get pods -o wide
+
+# Ver logs de um pod específico
+kubectl logs -f <nome-do-pod>
+
+# Descrever um pod para ver eventos
+kubectl describe pod <nome-do-pod>
+```
+
+### Verificar serviços
+
+```powershell
+# Ver todos os serviços
+kubectl get services
+
+# Ver detalhes de um serviço específico
+kubectl describe service <nome-do-serviço>
+```
+
+### Reiniciar pods
+
+```powershell
+# Reiniciar um pod específico
+kubectl delete pod <nome-do-pod>
+
+# Reiniciar todos os pods de um deployment
+kubectl rollout restart deployment <nome-do-deployment>
+```
+
 ## �🗄️ Bancos de Dados
 
 O sistema utiliza uma instância PostgreSQL com múltiplos bancos de dados:

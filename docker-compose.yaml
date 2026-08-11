@@ -2,7 +2,7 @@ name: orbe-ledger
 services:
   db:
     container_name: orbe-ledger-db
-    image: postgres
+    image: postgres:15
     restart: always
     # set shared memory limit when using docker compose
     shm_size: 128mb
@@ -13,7 +13,7 @@ services:
     ports:
       - 5432:5432
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql
       - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U orbe-ledger"]
