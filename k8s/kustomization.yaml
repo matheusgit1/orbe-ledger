@@ -1,0 +1,22 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: default
+
+resources:
+  - postgres-init-configmap.yaml
+  - postgres.yaml
+  - configmap.yaml
+  - secret.yaml
+  - orbe-ledger.yaml
+  - orbe-services.yaml
+  - kong-configmap.yaml
+  - kong.yaml
+
+images:
+  - name: orbe-ledger
+    newName: orbe-ledger
+    newTag: latest
+  - name: orbe-services
+    newName: orbe-services
+    newTag: latest

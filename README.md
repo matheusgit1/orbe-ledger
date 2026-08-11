@@ -108,8 +108,9 @@ O sistema segue uma arquitetura de microserviços modular com comunicação via 
 ### Infraestrutura
 
 - **Containerization**: Docker & Docker Compose
+- **Orchestration**: Kubernetes (Minikube)
 - **Message Broker**: RabbitMQ (planejado)
-- **Volume Management**: Docker volumes para persistência
+- **Volume Management**: Docker volumes e PersistentVolumes para persistência
 
 ## 🔧 Configuração Rápida
 
@@ -168,7 +169,142 @@ O sistema segue uma arquitetura de microserviços modular com comunicação via 
 - **Kong Admin**: http://localhost:8001
 - **PostgreSQL**: localhost:5432
 
-## 🗄️ Bancos de Dados
+## 🚀 Deploy no Kubernetes
+
+### Opção 1: Docker Desktop Kubernetes (Recomendado para Windows)
+
+Esta opção usa o Kubernetes integrado do Docker Desktop, que é mais simples no Windows.
+
+#### Pré-requisitos
+
+- Docker Desktop instalado
+- Kubernetes habilitado no Docker Desktop
+
+#### Habilitar Kubernetes no Docker Desktop
+
+1. Abra o Docker Desktop
+2. Vá em **Settings > Kubernetes**
+3. Habilite **"Enable Kubernetes"**
+4. Clique em **"Apply & Restart"**
+5. Aguarde o Kubernetes iniciar
+
+#### Deploy com um único comando
+
+```powershell
+.\deploy-docker-k8s.ps1
+```
+
+Este script automaticamente:
+
+1. Verifica se o Kubernetes do Docker Desktop está rodando
+2. Constrói as imagens Docker localmente
+3. Aplica todos os manifests Kubernetes
+4. Aguarda todos os pods ficarem prontos
+5. Exibe as URLs de acesso aos serviços
+
+#### Acesso aos Serviços
+
+Após o deploy, os serviços estarão disponíveis em:
+
+- **Kong Gateway**: http://localhost:30080
+- **Orbe Ledger**: http://localhost:30080/orbe-ledger
+- **Orbe Services**: http://localhost:30080/orbe-services
+- **Kong Admin**: http://localhost:30081
+
+#### Comandos úteis
+
+```powershell
+# Ver status dos pods
+kubectl get pods
+
+# Ver logs de um pod específico
+kubectl logs -f <pod-name>
+
+# Ver serviços
+kubectl get services
+
+# Limpar o deploy
+.\cleanup-docker-k8s.ps1
+```
+
+### Opção 2: Minikube
+
+#### Pré-requisitos
+
+- Minikube instalado
+- kubectl configurado
+- Docker instalado
+
+#### Deploy com um único comando
+
+**No Windows (PowerShell):**
+
+```powershell
+.\deploy-minikube.ps1
+```
+
+**No Linux/Mac (Bash):**
+
+```bash
+chmod +x deploy-minikube.sh
+./deploy-minikube.sh
+```
+
+Este script automaticamente:
+
+1. Verifica e inicia o Minikube se necessário
+2. Configura o ambiente Docker para usar o daemon do Minikube
+3. Constrói as imagens Docker localmente
+4. Aplica todos os manifests Kubernetes
+5. Aguarda todos os pods ficarem prontos
+6. Exibe as URLs de acesso aos serviços
+
+#### Acesso aos Serviços
+
+Após o deploy, os serviços estarão disponíveis nas URLs fornecidas pelo script:
+
+- **Kong Gateway**: URL fornecida pelo Minikube
+- **Orbe Ledger**: `{KONG_URL}/orbe-ledger`
+- **Orbe Services**: `{KONG_URL}/orbe-services`
+- **Kong Admin**: URL fornecida pelo Minikube na porta 8001
+
+#### Comandos úteis
+
+```bash
+# Ver status dos pods
+kubectl get pods
+
+# Ver logs de um pod específico
+kubectl logs -f <pod-name>
+
+# Ver serviços
+kubectl get services
+
+# Acessar o dashboard do Minikube
+minikube dashboard
+
+# Limpar o deploy
+# Windows:
+.\cleanup-minikube.ps1
+# Linux/Mac:
+./cleanup-minikube.sh
+```
+
+### Estrutura Kubernetes
+
+O projeto inclui manifests Kubernetes completos no diretório `k8s/`:
+
+- `configmap.yaml` - Configurações gerais
+- `secret.yaml` - Senhas e dados sensíveis
+- `postgres-init-configmap.yaml` - Script de inicialização do PostgreSQL
+- `postgres.yaml` - Deployment e Service do PostgreSQL com PVC
+- `orbe-ledger.yaml` - Deployment e Service do Orbe Ledger
+- `orbe-services.yaml` - Deployment e Service do Orbe Services
+- `kong-configmap.yaml` - Configuração do Kong
+- `kong.yaml` - Deployment e Service do Kong
+- `kustomization.yaml` - Kustomize para deploy unificado
+
+## �🗄️ Bancos de Dados
 
 O sistema utiliza uma instância PostgreSQL com múltiplos bancos de dados:
 

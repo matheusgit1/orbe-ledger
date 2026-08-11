@@ -1,0 +1,33 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kong-config
+  namespace: default
+data:
+  kong.yml: |
+    _format_version: "3.0"
+
+    services:
+      - name: orbe-ledger
+        url: http://orbe-ledger-service:3000
+        routes:
+          - name: orbe-ledger-route
+            paths:
+              - /orbe-ledger
+            strip_path: false
+          - name: orbe-ledger-health-route
+            paths:
+              - /orbe-ledger/health
+            strip_path: false
+
+      - name: orbe-services
+        url: http://orbe-services-service:3001
+        routes:
+          - name: orbe-services-route
+            paths:
+              - /orbe-services
+            strip_path: false
+          - name: orbe-services-health-route
+            paths:
+              - /orbe-services/health
+            strip_path: false
