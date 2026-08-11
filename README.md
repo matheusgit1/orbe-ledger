@@ -20,29 +20,65 @@ Criar um sistema core banking educacional que demonstre:
 
 ## 🏗️ Arquitetura do Sistema
 
+> ⚠️ **Aviso**: Este projeto está em desenvolvimento ativo. A arquitetura e componentes podem sofrer alterações significativas durante o processo de evolução.
+
 O sistema segue uma arquitetura de microserviços modular com comunicação via mensageria assíncrona e APIs REST:
 
 ```text
-┌─────────────────────────────────────────────────────────────────┐
-│                    Orbe Core Banking System                      │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  ┌──────────────┐     ┌──────────────┐     ┌──────────────┐    │
-│  │              │     │              │     │              │    │
-│  │   Kong API   │◄────┤ Orbe Ledger  │◄────┤ Orbe Services│    │
-│  │   Gateway    │     │              │     │              │    │
-│  │              │     │ Contabilidade│     │ Catálogo de  │    │
-│  └──────────────┘     │ e Ledger     │     │ Serviços e  │    │
-│         │             │              │     │ Taxas       │    │
-│         └─────────────┴──────────────┘     └──────────────┘    │
-│                           │                                      │
-│                           ▼                                      │
-│                  ┌──────────────┐                               │
-│                  │  PostgreSQL   │                               │
-│                  │  Multi-DB     │                               │
-│                  └──────────────┘                               │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         Orbe Core Banking System                         │
+│                         (Em Desenvolvimento)                             │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│   ┌──────────────────────────────────────────────────────────────┐    │
+│   │                        API Gateway Layer                        │    │
+│   │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐         │    │
+│   │  │              │  │              │  │              │         │    │
+│   │  │  Kong API    │  │  Health      │  │  Monitoring  │         │    │
+│   │  │  Gateway     │  │  Checks      │  │  (Prometheus)│         │    │
+│   │  │  :8000/8443  │  │              │  │  (Planejado) │         │    │
+│   │  └──────────────┘  └──────────────┘  └──────────────┘         │    │
+│   └──────────────────────────────────────────────────────────────┘    │
+│              │                    │                    │               │
+│              ▼                    ▼                    ▼               │
+│   ┌──────────────────────────────────────────────────────────────┐    │
+│   │                    Application Layer                           │    │
+│   │                                                                │    │
+│   │  ┌──────────────────┐      ┌──────────────────┐              │    │
+│   │  │                  │      │                  │              │    │
+│   │  │   Orbe Ledger    │      │  Orbe Services   │              │    │
+│   │  │   :3000          │      │  :3001           │              │    │
+│   │  │                  │      │                  │              │    │
+│   │  │ • Contabilidade  │      │ • Catálogo de    │              │    │
+│   │  │ • Double-entry   │      │   Serviços       │              │    │
+│   │  │ • Journals       │      │ • Taxas e Tarifas│              │    │
+│   │  │ • Reconciliação  │      │ • Configurações  │              │    │
+│   │  │                  │      │                  │              │    │
+│   │  └──────────────────┘      └──────────────────┘              │    │
+│   │                                                                │    │
+│   │  ┌──────────────────┐      ┌──────────────────┐              │    │
+│   │  │  SPI Simulator   │      │  RabbitMQ        │              │    │
+│   │  │  (Planejado)     │      │  (Planejado)      │              │    │
+│   │  │  :3002           │      │  :5672/15672      │              │    │
+│   │  └──────────────────┘      └──────────────────┘              │    │
+│   └──────────────────────────────────────────────────────────────┘    │
+│              │                    │                    │               │
+│              └────────────────────┴────────────────────┘           │
+│                                   │                                 │
+│                                   ▼                                 │
+│   ┌──────────────────────────────────────────────────────────────┐    │
+│   │                      Data Layer                                │    │
+│   │                                                                │    │
+│   │  ┌──────────────────────────────────────────────────┐        │    │
+│   │  │             PostgreSQL Multi-Database             │        │    │
+│   │  │  ┌──────────────┐  ┌──────────────┐  ┌──────────┐ │        │    │
+│   │  │  │ main-ledger  │  │orbe-services │  │spi-sim   │ │        │    │
+│   │  │  │ (Contabilidade)│ (Catálogo)   │  │(SPI/DICT)│ │        │    │
+│   │  │  └──────────────┘  └──────────────┘  └──────────┘ │        │    │
+│   │  └──────────────────────────────────────────────────┘        │    │
+│   └──────────────────────────────────────────────────────────────┘    │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
 ```
 
 ## 📦 Microserviços Atuais
@@ -462,6 +498,7 @@ Baseado na arquitetura de referência, aqui está o roadmap do projeto:
 - [x] Health checks
 - [x] Seed de dados (serviços e taxas)
 - [x] Integração básica entre serviços
+- [x] Kubernetes manifests para deploy em cluster
 
 ### 🚧 Core Banking (Em Desenvolvimento)
 
