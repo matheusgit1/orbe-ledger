@@ -304,6 +304,74 @@ O projeto inclui manifests Kubernetes completos no diretório `k8s/`:
 - `kong.yaml` - Deployment e Service do Kong
 - `kustomization.yaml` - Kustomize para deploy unificado
 
+## 📊 Acessar o Kubernetes Dashboard
+
+Para acessar a interface gráfica do Kubernetes:
+
+### Script Automático (Recomendado)
+
+**Windows:**
+
+```powershell
+.\setup-dashboard.ps1
+```
+
+**Linux/Mac:**
+
+```bash
+chmod +x setup-dashboard.sh
+./setup-dashboard.sh
+```
+
+Este script automaticamente:
+
+1. Instala o Kubernetes Dashboard
+2. Cria usuário admin com permissões
+3. Gera token de acesso
+4. Inicia o proxy (opcionalmente)
+
+### Manualmente
+
+```powershell
+# Instalar o dashboard
+kubectl apply -f https://raw.githubusercontent.com/kubernetes/dashboard/v2.7.0/aio/deploy/recommended.yaml
+
+# Criar usuário admin
+kubectl create serviceaccount dashboard-admin-sa
+kubectl create clusterrolebinding dashboard-admin-sa --clusterrole=cluster-admin --serviceaccount=default:dashboard-admin-sa
+
+# Obter token para login
+kubectl create token dashboard-admin-sa
+
+# Iniciar proxy
+kubectl proxy
+```
+
+### Acesso
+
+Após executar o proxy, acesse o dashboard em:
+**http://localhost:8001/api/v1/namespaces/kubernetes-dashboard/services/https:kubernetes-dashboard:/proxy/**
+
+Use o token obtido no comando `kubectl create token dashboard-admin-sa` para fazer login.
+
+### Remover o Dashboard
+
+Para remover o Kubernetes Dashboard:
+
+**Windows:**
+
+```powershell
+.\cleanup-dashboard.ps1
+```
+
+**Linux/Mac:**
+
+```bash
+kubectl delete -f https://raw.githubusercontent.com/kubernetes/dashboard/v2.7.0/aio/deploy/recommended.yaml
+kubectl delete serviceaccount dashboard-admin-sa
+kubectl delete clusterrolebinding dashboard-admin-sa
+```
+
 ## �🗄️ Bancos de Dados
 
 O sistema utiliza uma instância PostgreSQL com múltiplos bancos de dados:
