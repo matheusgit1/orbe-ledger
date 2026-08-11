@@ -10,6 +10,7 @@ import { HoldService as HoldRepository } from 'src/core/services/hold.service';
 import { LedgerService } from 'src/core/services/ledger.service';
 import { ServiceService } from 'src/core/services/service.service';
 import { LedgerCode } from 'src/infra/database/common/enums/ledger.enum';
+import { TaxesService } from 'src/infra/proxy/taxes/taxes.service';
 
 @Injectable()
 export class HoldService {
@@ -25,6 +26,7 @@ export class HoldService {
     private readonly holdUsecase: CreateHoldUsecase,
     private readonly releaseHoldUsecase: ReleaseHoldUsecase,
     private readonly captureHoldUsecase: CaptureHoldUsecase,
+    private readonly taxesService: TaxesService,
     // private feeCalculatorService: FeeCalculatorService
   ) {}
 
@@ -95,6 +97,7 @@ export class HoldService {
         service,
         revenueAccount,
         settlementAccount,
+        taxes,
       ] = await Promise.all([
         this.holdService.findById(dto.holdId),
         this.accountService.findByCode('HOLD-RESERVE'),
@@ -102,6 +105,7 @@ export class HoldService {
         this.serviceService.getServiceByCode('SRV-HOLD'),
         this.accountService.findByCode('REVENUE-HOLD'),
         this.accountService.findByCode('HOLD-SETTLEMENT'),
+        this.taxesService.getServiceByCode('SRV-HOLD'),
       ]);
 
       const response = await this.captureHoldUsecase.handler({
@@ -112,7 +116,14 @@ export class HoldService {
         settlementAccount: settlementAccount,
         requestId: hash,
         ledger: ledger,
-        tax: this.feeService.calculateNetAmount(service, hold.amount),
+        taxes: this.feeService.calculateTaxes(
+          taxes.data.taxes?.map((tax) => ({
+            type: tax.type,
+            value: tax.amount,
+            name: tax.name,
+            description: tax.description,
+          })) || [],
+        ),
       });
       this.logger.log(`[${hash}] Hold release: ${JSON.stringify(response)}`);
       return response;

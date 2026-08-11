@@ -9,6 +9,7 @@ import { CreateHoldUsecase } from './services/holds/create-hold.usecase';
 import { ReleaseHoldUsecase } from './services/holds/release-hold.usecase';
 import { CaptureHoldUsecase } from './services/holds/capture-hold.usecase';
 import { LedgerPostingModule } from '../posting/ledger.posting.module';
+import { ProxyModule } from 'src/infra/proxy/proxy.module';
 
 const services = [
   /**PIX**/

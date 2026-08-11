@@ -119,6 +119,8 @@ export class LedgerPostingStrategy {
         return await this.holdCapturePostingStrategy
           .build(args.queryRunner, args.data)
           .execute();
+      default:
+        throw new Error('Invalid strategy type');
     }
   }
 }

@@ -15,6 +15,7 @@ import {
   AuditEntity,
 } from 'src/infra/database/common/enums/audit.enum';
 import { Transaction } from 'src/infra/database/entities/transaction.entity';
+import { TaxType } from 'src/infra/proxy/_types_/taxes.type';
 
 export interface TicketPostingArgs {
   description: string;
@@ -26,7 +27,12 @@ export interface TicketPostingArgs {
   idempotencyKey: string;
   requestId: string;
   amount: number;
-  tax: number;
+  taxes?: {
+    type: TaxType;
+    value: number;
+    name: string;
+    description: string;
+  }[];
   transaction: Transaction;
 }
 
@@ -60,7 +66,7 @@ export class TicketPostingStrategy {
       idempotencyKey,
       requestId,
       amount,
-      tax,
+      taxes = [],
     } = args;
     const createdJournal = await this.journalService.createJournal(
       queryRunner,
@@ -84,20 +90,20 @@ export class TicketPostingStrategy {
             currencyId: payerAccount.currencyId,
             metadata: {},
           },
+          ...taxes.map((t) => ({
+            accountId: revenueAccount.id,
+            amount: parseFloat(Number(t.value).toFixed(10)),
+            side: EntrySide.CREDIT,
+            description: t.description,
+            currencyId: revenueAccount.currencyId,
+            metadata: {},
+          })),
           {
             accountId: receiverAccount.id,
-            amount: amount - tax,
+            amount: amount - taxes.reduce((acc, t) => acc + t.value, 0),
             side: EntrySide.CREDIT,
             description: 'deposito via boleto',
             currencyId: receiverAccount.currencyId,
-            metadata: {},
-          },
-          {
-            accountId: revenueAccount.id,
-            amount: parseFloat(Number(tax).toFixed(10)),
-            side: EntrySide.CREDIT,
-            description: 'taxa via boleto',
-            currencyId: revenueAccount.currencyId,
             metadata: {},
           },
         ],
@@ -148,7 +154,20 @@ export class TicketPostingStrategy {
         await this.balanceSnapshot.updateBalanceForTransfer(
           queryRunner,
           receiverAccount.balanceSnapshots,
-          amount - tax,
+          amount - taxes.reduce((acc, t) => acc + t.value, 0),
+          entry.isDebit(),
+          entry.id,
+          createdJournal.id,
+        );
+      }
+    }
+
+    for (const entry of createdJournal.entries) {
+      if (entry.accountId === revenueAccount.id) {
+        await this.balanceSnapshot.updateBalanceForTransfer(
+          queryRunner,
+          revenueAccount.balanceSnapshots,
+          taxes.reduce((acc, t) => acc + t.value, 0),
           entry.isDebit(),
           entry.id,
           createdJournal.id,

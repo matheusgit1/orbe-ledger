@@ -13,6 +13,8 @@ import { Ledger } from 'src/infra/database/entities/ledger.entity';
 import { Service } from 'src/infra/database/entities/service.entity';
 import { Transaction } from 'src/infra/database/entities/transaction.entity';
 import { OrmService } from 'src/infra/database/orm/orm.service';
+import { TaxType } from 'src/infra/proxy/_types_/taxes.type';
+import { TaxesService } from 'src/infra/proxy/taxes/taxes.service';
 
 @Injectable()
 export class TicketUsecase {
@@ -35,7 +37,12 @@ export class TicketUsecase {
     idempotencyKey: string;
     requestId: string;
     amount: number;
-    tax: number;
+    taxes: {
+      type: TaxType;
+      value: number;
+      name: string;
+      description: string;
+    }[];
   }) {
     const { queryRunner } = await this.ormService.getQueryRunner();
     try {
@@ -86,7 +93,7 @@ export class TicketUsecase {
           description: 'Liquidação via boleto',
           idempotencyKey: body.idempotencyKey,
           amount: body.amount,
-          tax: body.tax,
+          taxes: body.taxes,
           payerAccount: body.payerAccount,
           receiverAccount: body.receiverAccount,
           revenueAccount: body.revenueAccount,
@@ -97,7 +104,7 @@ export class TicketUsecase {
 
       await this.transactionService.complete(queryRunner, savedTransaction);
 
-      const resp = this.buildResponse(savedTransaction, journal, body.tax);
+      const resp = this.buildResponse(savedTransaction, journal, body.taxes);
 
       await this.idempotencyService.updateWithQueryRunner(
         queryRunner,
@@ -122,7 +129,12 @@ export class TicketUsecase {
   private buildResponse(
     transaction: Transaction,
     journal: Journal,
-    tax: number = 0,
+    taxes: {
+      type: TaxType;
+      value: number;
+      name: string;
+      description: string;
+    }[] = [],
   ): any {
     return {
       transactionId: transaction.id,
@@ -134,7 +146,7 @@ export class TicketUsecase {
       receiverAccount: transaction.destinationAccountId,
       createdAt: transaction.createdAt,
       updatedAt: transaction.updatedAt,
-      tax: tax,
+      taxes: taxes,
     };
   }
 }

@@ -2,7 +2,6 @@ import { Injectable, Logger } from '@nestjs/common';
 import { LedgerPostingStrategy } from 'src/core/posting/ledger.posting.strategy';
 import { IdempotencyRules } from 'src/core/rules/business/idempotency.rules';
 import { AccountsService } from 'src/core/services/accounts.service';
-import { AuditService } from 'src/core/services/audit.service';
 import { IdempotencyService } from 'src/core/services/idempotency.service';
 import { TransactionService } from 'src/core/services/transaction.service';
 import { EntityType } from 'src/infra/database/common/enums/idempotency.status';
@@ -13,6 +12,7 @@ import { Ledger } from 'src/infra/database/entities/ledger.entity';
 import { Service } from 'src/infra/database/entities/service.entity';
 import { Transaction } from 'src/infra/database/entities/transaction.entity';
 import { OrmService } from 'src/infra/database/orm/orm.service';
+import { TaxType } from 'src/infra/proxy/_types_/taxes.type';
 
 @Injectable()
 export class DocUsecase {
@@ -35,7 +35,12 @@ export class DocUsecase {
     idempotencyKey: string;
     requestId: string;
     amount: number;
-    tax: number;
+    taxes: {
+      type: TaxType;
+      value: number;
+      name: string;
+      description: string;
+    }[];
   }) {
     const { queryRunner } = await this.ormService.getQueryRunner();
     try {
@@ -86,7 +91,7 @@ export class DocUsecase {
           description: 'Liquidação via doc',
           idempotencyKey: body.idempotencyKey,
           amount: body.amount,
-          tax: body.tax,
+          taxes: body.taxes,
           payerAccount: body.payerAccount,
           receiverAccount: body.receiverAccount,
           revenueAccount: body.revenueAccount,
@@ -97,7 +102,7 @@ export class DocUsecase {
 
       await this.transactionService.complete(queryRunner, savedTransaction);
 
-      const resp = this.buildResponse(savedTransaction, journal, body.tax);
+      const resp = this.buildResponse(savedTransaction, journal, body.taxes);
 
       await this.idempotencyService.updateWithQueryRunner(
         queryRunner,
@@ -122,7 +127,7 @@ export class DocUsecase {
   private buildResponse(
     transaction: Transaction,
     journal: Journal,
-    tax: number = 0,
+    taxes: any[],
   ): any {
     return {
       transactionId: transaction.id,
@@ -134,7 +139,7 @@ export class DocUsecase {
       receiverAccount: transaction.destinationAccountId,
       createdAt: transaction.createdAt,
       updatedAt: transaction.updatedAt,
-      tax: tax,
+      taxes,
     };
   }
 }

@@ -8,10 +8,7 @@ import { HttpModule } from '@nestjs/axios';
       useFactory: () => ({
         timeout: 5000,
         maxRedirects: 5,
-        baseURL:
-          process.env.NODE_ENV === 'production'
-            ? process.env.KONG_PROXY
-            : 'http://localhost:3001',
+        baseURL: process.env.KONG_PROXY,
       }),
     }),
   ],

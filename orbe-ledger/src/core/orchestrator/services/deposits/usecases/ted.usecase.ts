@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { type } from 'os';
 import { LedgerPostingStrategy } from 'src/core/posting/ledger.posting.strategy';
 import { IdempotencyRules } from 'src/core/rules/business/idempotency.rules';
 import { AccountsService } from 'src/core/services/accounts.service';
@@ -13,6 +14,7 @@ import { Ledger } from 'src/infra/database/entities/ledger.entity';
 import { Service } from 'src/infra/database/entities/service.entity';
 import { Transaction } from 'src/infra/database/entities/transaction.entity';
 import { OrmService } from 'src/infra/database/orm/orm.service';
+import { TaxType } from 'src/infra/proxy/_types_/taxes.type';
 
 @Injectable()
 export class TedUsecase {
@@ -36,7 +38,12 @@ export class TedUsecase {
     idempotencyKey: string;
     requestId: string;
     amount: number;
-    tax: number;
+    taxes: {
+      type: TaxType;
+      value: number;
+      name: string;
+      description: string;
+    }[];
   }) {
     const { queryRunner } = await this.ormService.getQueryRunner();
     try {
@@ -87,7 +94,7 @@ export class TedUsecase {
           description: 'Liquidação via ted',
           idempotencyKey: body.idempotencyKey,
           amount: body.amount,
-          tax: body.tax,
+          taxes: body.taxes,
           payerAccount: body.payerAccount,
           receiverAccount: body.receiverAccount,
           revenueAccount: body.revenueAccount,
@@ -98,7 +105,7 @@ export class TedUsecase {
 
       await this.transactionService.complete(queryRunner, savedTransaction);
 
-      const resp = this.buildResponse(savedTransaction, journal, body.tax);
+      const resp = this.buildResponse(savedTransaction, journal, body.taxes);
 
       await this.idempotencyService.updateWithQueryRunner(
         queryRunner,
@@ -123,7 +130,7 @@ export class TedUsecase {
   private buildResponse(
     transaction: Transaction,
     journal: Journal,
-    tax: number = 0,
+    taxes: any,
   ): any {
     return {
       transactionId: transaction.id,
@@ -135,7 +142,7 @@ export class TedUsecase {
       receiverAccount: transaction.destinationAccountId,
       createdAt: transaction.createdAt,
       updatedAt: transaction.updatedAt,
-      tax: tax,
+      taxes,
     };
   }
 }

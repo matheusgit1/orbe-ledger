@@ -16,6 +16,7 @@ import {
   AuditEntity,
 } from 'src/infra/database/common/enums/audit.enum';
 import { Transaction } from 'src/infra/database/entities/transaction.entity';
+import { TaxType } from 'src/infra/proxy/_types_/taxes.type';
 
 export interface HoldCapturePostingArgs {
   description: string;
@@ -27,7 +28,12 @@ export interface HoldCapturePostingArgs {
   idempotencyKey: string;
   requestId: string;
   amount: number;
-  tax: number;
+  taxes?: {
+    type: TaxType;
+    value: number;
+    name: string;
+    description: string;
+  }[];
   hold: Hold;
   transaction: Transaction;
 }
@@ -63,6 +69,7 @@ export class HoldCapturePostingStrategy {
       amount,
       hold,
       description,
+      taxes = [],
     } = args;
     const createdJournal = await this.journalService.createJournal(
       queryRunner,
@@ -88,13 +95,22 @@ export class HoldCapturePostingStrategy {
             currencyId: payerAccount.currencyId,
             metadata: {},
           },
-          {
-            accountId: receiverAccount.id,
-            amount: amount,
+          ...taxes.map((tax) => ({
+            accountId: revenueAccount.id,
+            amount: tax.value,
             side: EntrySide.CREDIT,
-            holdId: undefined,
+            holdId: hold.id,
+            description: tax.description,
+            currencyId: revenueAccount.currencyId,
+            metadata: {},
+          })),
+          {
+            accountId: originalAccount.id,
+            amount: amount - taxes.reduce((acc, tax) => acc + tax.value, 0),
+            side: EntrySide.CREDIT,
+            holdId: hold.id,
             description: description,
-            currencyId: receiverAccount.currencyId,
+            currencyId: originalAccount.currencyId,
             metadata: {},
           },
         ],

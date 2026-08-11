@@ -10,6 +10,7 @@ import {
 } from 'src/infra/database/common/enums/journal.enum';
 import { Transaction } from 'src/infra/database/entities/transaction.entity';
 import { BalanceSnapshotService } from 'src/core/services/balance-snapshot.service';
+import { TaxType } from 'src/infra/proxy/_types_/taxes.type';
 
 export interface DocPostingArgs {
   description: string;
@@ -21,7 +22,12 @@ export interface DocPostingArgs {
   idempotencyKey: string;
   requestId: string;
   amount: number;
-  tax: number;
+  taxes: {
+    type: TaxType;
+    value: number;
+    name: string;
+    description: string;
+  }[];
   transaction: Transaction;
 }
 
@@ -52,7 +58,7 @@ export class DocPostingStrategy {
       idempotencyKey,
       requestId,
       amount,
-      tax,
+      taxes,
     } = args;
     const createdJournal = await this.journalService.createJournal(
       queryRunner,
@@ -76,20 +82,20 @@ export class DocPostingStrategy {
             currencyId: payerAccount.currencyId,
             metadata: {},
           },
+          ...taxes.map((tax) => ({
+            accountId: revenueAccount.id,
+            amount: tax.value,
+            side: EntrySide.CREDIT,
+            description: tax.description,
+            currencyId: revenueAccount.currencyId,
+            metadata: {},
+          })),
           {
             accountId: receiverAccount.id,
-            amount: amount - tax,
+            amount: amount - taxes.reduce((acc, tax) => acc + tax.value, 0),
             side: EntrySide.CREDIT,
             description: 'deposito via doc',
             currencyId: receiverAccount.currencyId,
-            metadata: {},
-          },
-          {
-            accountId: revenueAccount.id,
-            amount: parseFloat(Number(tax).toFixed(10)),
-            side: EntrySide.CREDIT,
-            description: 'taxa via doc',
-            currencyId: revenueAccount.currencyId,
             metadata: {},
           },
         ],
@@ -114,7 +120,7 @@ export class DocPostingStrategy {
         await this.balanceSnapshot.updateBalanceForTransfer(
           queryRunner,
           receiverAccount.balanceSnapshots,
-          amount - tax,
+          entry.amount,
           entry.isDebit(),
           entry.id,
           createdJournal.id,
@@ -127,7 +133,7 @@ export class DocPostingStrategy {
         await this.balanceSnapshot.updateBalanceForTransfer(
           queryRunner,
           revenueAccount.balanceSnapshots,
-          tax,
+          entry.amount,
           entry.isDebit(),
           entry.id,
           createdJournal.id,

@@ -26,16 +26,16 @@ export class IdempotencyRules {
       `[${dto.requestId}] idempotency already processed: ${dto.key}`,
     );
 
-    if (!idempotency.canRetry()) {
+    if (!idempotency.isRetryable()) {
       throw new Error('Idempotency cannot be retried');
     }
 
     this.validateIdempotencyStatus(idempotency);
 
-    if (idempotency.isPending() || idempotency.isFailed()) {
-      await this.ensureTransactionExists(dto.key);
-      return idempotency;
-    }
+    // if (idempotency.isPending() || idempotency.isFailed()) {
+    //   await this.ensureTransactionExists(dto.key);
+    //   return idempotency;
+    // }
 
     return idempotency;
   }
@@ -49,9 +49,9 @@ export class IdempotencyRules {
       throw new Error('Request expired!');
     }
 
-    if (idempotency.isCompleted()) {
-      throw new Error('Request already completed!');
-    }
+    // if (idempotency.isCompleted()) {
+    //   throw new Error('Request already completed!');
+    // }
   }
 
   private async ensureTransactionExists(correlationId: string): Promise<void> {

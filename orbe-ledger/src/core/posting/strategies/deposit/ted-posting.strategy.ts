@@ -15,6 +15,7 @@ import {
   AuditEntity,
 } from 'src/infra/database/common/enums/audit.enum';
 import { Transaction } from 'src/infra/database/entities/transaction.entity';
+import { TaxType } from 'src/infra/proxy/_types_/taxes.type';
 
 export interface TedPostingArgs {
   description: string;
@@ -26,7 +27,12 @@ export interface TedPostingArgs {
   idempotencyKey: string;
   requestId: string;
   amount: number;
-  tax: number;
+  taxes?: {
+    type: TaxType;
+    value: number;
+    name: string;
+    description: string;
+  }[];
   transaction: Transaction;
 }
 
@@ -59,7 +65,7 @@ export class TedPostingStrategy {
       idempotencyKey,
       requestId,
       amount,
-      tax,
+      taxes = [],
     } = args;
     const createdJournal = await this.journalService.createJournal(
       queryRunner,
@@ -83,20 +89,20 @@ export class TedPostingStrategy {
             currencyId: payerAccount.currencyId,
             metadata: {},
           },
+          ...taxes.map((tax) => ({
+            accountId: revenueAccount.id,
+            amount: tax.value,
+            side: EntrySide.CREDIT,
+            description: tax.description,
+            currencyId: revenueAccount.currencyId,
+            metadata: {},
+          })),
           {
             accountId: receiverAccount.id,
-            amount: amount - tax,
+            amount: amount - taxes.reduce((acc, tax) => acc + tax.value, 0),
             side: EntrySide.CREDIT,
             description: 'deposito via ted',
             currencyId: receiverAccount.currencyId,
-            metadata: {},
-          },
-          {
-            accountId: revenueAccount.id,
-            amount: parseFloat(Number(tax).toFixed(10)),
-            side: EntrySide.CREDIT,
-            description: 'taxa via ted',
-            currencyId: revenueAccount.currencyId,
             metadata: {},
           },
         ],
@@ -134,7 +140,7 @@ export class TedPostingStrategy {
         await this.balanceSnapshot.updateBalanceForTransfer(
           queryRunner,
           payerAccount.balanceSnapshots,
-          amount,
+          entry.amount,
           entry.isDebit(),
           entry.id,
           createdJournal.id,
@@ -147,7 +153,7 @@ export class TedPostingStrategy {
         await this.balanceSnapshot.updateBalanceForTransfer(
           queryRunner,
           receiverAccount.balanceSnapshots,
-          amount - tax,
+          entry.amount,
           entry.isDebit(),
           entry.id,
           createdJournal.id,
@@ -160,7 +166,7 @@ export class TedPostingStrategy {
         await this.balanceSnapshot.updateBalanceForTransfer(
           queryRunner,
           revenueAccount.balanceSnapshots,
-          tax,
+          entry.amount,
           entry.isDebit(),
           entry.id,
           createdJournal.id,

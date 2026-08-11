@@ -81,8 +81,8 @@ export class Idempotency {
     return this.status === IdempotencyStatus.FAILED;
   }
 
-  canRetry(): boolean {
-    return this.isFailed() && !this.isExpired();
+  isRetryable(): boolean {
+    return this.isFailed() || this.isPending();
   }
 
   setAsCompleted(response: Record<string, any>): Idempotency {

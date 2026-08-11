@@ -13,6 +13,7 @@ import { Journal } from 'src/infra/database/entities/journal.entity';
 import { Ledger } from 'src/infra/database/entities/ledger.entity';
 import { Transaction } from 'src/infra/database/entities/transaction.entity';
 import { OrmService } from 'src/infra/database/orm/orm.service';
+import { TaxType } from 'src/infra/proxy/_types_/taxes.type';
 
 @Injectable()
 export class CaptureHoldUsecase {
@@ -36,7 +37,12 @@ export class CaptureHoldUsecase {
     idempotencyKey: string;
     requestId: string;
     ledger: Ledger;
-    tax: number;
+    taxes?: {
+      type: TaxType;
+      value: number;
+      name: string;
+      description: string;
+    }[];
   }) {
     const {
       hold,
@@ -46,6 +52,7 @@ export class CaptureHoldUsecase {
       revenueAccount,
       requestId,
       ledger,
+      taxes
     } = body;
     this.logger.log('release hold usecase running');
     const { queryRunner } = await this.ormService.getQueryRunner();
@@ -108,7 +115,7 @@ export class CaptureHoldUsecase {
           revenueAccount: revenueAccount,
           requestId: body.requestId,
           hold: updatedHold,
-          tax: body.tax,
+          taxes
         },
       });
 

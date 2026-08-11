@@ -12,6 +12,7 @@ import { TedDepositDto } from './dtos/ted-deposit.dto';
 import { TedUsecase } from 'src/core/orchestrator/services/deposits/usecases/ted.usecase';
 import { DocDepositDto } from './dtos/doc-deposit.dto';
 import { DocUsecase } from 'src/core/orchestrator/services/deposits/usecases/doc.usecase';
+import { TaxesService } from 'src/infra/proxy/taxes/taxes.service';
 
 @Injectable()
 export class DepositsService {
@@ -26,6 +27,7 @@ export class DepositsService {
     private readonly docusecase: DocUsecase,
     private readonly serviceService: ServiceService,
     private readonly feeService: FeeService,
+    private readonly taxesService: TaxesService,
   ) {}
 
   async createTicket(dto: TicketDepositDto) {
@@ -37,12 +39,14 @@ export class DepositsService {
         ledger,
         service,
         ticketRevenueAccount,
+        taxes,
       ] = await Promise.all([
         this.accountService.findByNumber(dto.account),
         this.accountService.findByCode('BOLETO-SETTLEMENT'),
         this.ledgerService.getLedgerByCode(LedgerCode.MAIN),
         this.serviceService.getServiceByCode('SRV-BOLETO'),
         this.accountService.findByCode('REVENUE-BOLETO'),
+        this.taxesService.getServiceByCode(dto.serviceCode),
       ]);
 
       if (!account) {
@@ -53,11 +57,6 @@ export class DepositsService {
         throw new Error('Conta técnica não encontrada');
       }
 
-      const technicalAccountRevenue = this.feeService.calculateNetAmount(
-        service,
-        dto.amount,
-      );
-
       const response = await this.ticketUsecase.handler({
         receiverAccount: account,
         payerAccount: ticketTechnicalAccount,
@@ -67,7 +66,14 @@ export class DepositsService {
         idempotencyKey: dto.idempotencyKey,
         requestId: hash,
         amount: dto.amount,
-        tax: technicalAccountRevenue,
+        taxes: this.feeService.calculateTaxes(
+          taxes.data.taxes?.map((tax) => ({
+            type: tax.type,
+            value: tax.amount,
+            name: tax.name,
+            description: tax.description,
+          })) || [],
+        ),
       });
       return response;
     } catch (err) {
@@ -87,12 +93,14 @@ export class DepositsService {
         ledger,
         service,
         ticketRevenueAccount,
+        taxes,
       ] = await Promise.all([
         this.accountService.findByNumber(dto.account),
         this.accountService.findByCode('TED-SETTLEMENT'),
         this.ledgerService.getLedgerByCode(LedgerCode.MAIN),
         this.serviceService.getServiceByCode('SRV-TED'),
         this.accountService.findByCode('REVENUE-TED'),
+        this.taxesService.getServiceByCode(dto.serviceCode),
       ]);
 
       if (!account) {
@@ -117,7 +125,14 @@ export class DepositsService {
         idempotencyKey: dto.idempotencyKey,
         requestId: hash,
         amount: dto.amount,
-        tax: technicalAccountRevenue,
+        taxes: this.feeService.calculateTaxes(
+          taxes.data.taxes?.map((tax) => ({
+            type: tax.type,
+            value: tax.amount,
+            name: tax.name,
+            description: tax.description,
+          })) || [],
+        ),
       });
       return response;
     } catch (err) {
@@ -137,12 +152,14 @@ export class DepositsService {
         ledger,
         service,
         ticketRevenueAccount,
+        taxes,
       ] = await Promise.all([
         this.accountService.findByNumber(dto.account),
         this.accountService.findByCode('DOC-SETTLEMENT'),
         this.ledgerService.getLedgerByCode(LedgerCode.MAIN),
         this.serviceService.getServiceByCode('SRV-DOC'),
         this.accountService.findByCode('REVENUE-DOC'),
+        this.taxesService.getServiceByCode(dto.serviceCode),
       ]);
 
       if (!account) {
@@ -153,11 +170,6 @@ export class DepositsService {
         throw new Error('Conta técnica não encontrada');
       }
 
-      const technicalAccountRevenue = this.feeService.calculateNetAmount(
-        service,
-        dto.amount,
-      );
-
       const response = await this.docusecase.handler({
         receiverAccount: account,
         payerAccount: ticketTechnicalAccount,
@@ -167,7 +179,14 @@ export class DepositsService {
         idempotencyKey: dto.idempotencyKey,
         requestId: hash,
         amount: dto.amount,
-        tax: technicalAccountRevenue,
+        taxes: this.feeService.calculateTaxes(
+          taxes.data.taxes?.map((tax) => ({
+            type: tax.type,
+            value: tax.amount,
+            name: tax.name,
+            description: tax.description,
+          })) || [],
+        ),
       });
       return response;
     } catch (err) {
