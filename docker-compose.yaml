@@ -13,6 +13,7 @@ services:
     ports:
       - 5432:5432
     volumes:
+      - postgres_data:/var/lib/postgresql/data
       - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U orbe-ledger"]
@@ -108,7 +109,7 @@ services:
       DB_PORT: 5432
       DB_USER: orbe-ledger
       DB_PASSWORD: orbe-ledger
-      DB_NAME: orbe-ledger
+      DB_NAME: main-ledger
     depends_on:
       db:
         condition: service_healthy
@@ -176,3 +177,6 @@ services:
         condition: service_healthy
       orbe-services:
         condition: service_healthy
+
+volumes:
+  postgres_data:
