@@ -72,7 +72,7 @@ O sistema segue uma arquitetura de microserviços modular com comunicação via 
 │   │  ┌──────────────────────────────────────────────────┐        │    │
 │   │  │             PostgreSQL Multi-Database             │        │    │
 │   │  │  ┌──────────────┐  ┌──────────────┐  ┌──────────┐ │        │    │
-│   │  │  │ main-ledger  │  │orbe-services │  │spi-sim   │ │        │    │
+│   │  │  │ main-ledger  │  │orbe-taxes │  │spi-sim   │ │        │    │
 │   │  │  │ (Contabilidade)│ (Catálogo)   │  │(SPI/DICT)│ │        │    │
 │   │  │  └──────────────┘  └──────────────┘  └──────────┘ │        │    │
 │   │  └──────────────────────────────────────────────────┘        │    │
@@ -97,7 +97,7 @@ O sistema segue uma arquitetura de microserviços modular com comunicação via 
 
 ### 2. Orbe Services
 
-**Porta**: 3001 | **Banco de Dados**: `orbe-services`
+**Porta**: 3001 | **Banco de Dados**: `orbe-taxes`
 **Responsabilidade**: Catálogo de serviços e taxas
 
 - ✅ Gestão de serviços bancários (PIX, TED, DOC)
@@ -177,7 +177,7 @@ O sistema segue uma arquitetura de microserviços modular com comunicação via 
    # Para cada serviço, copie o .env.example para .env
    cd orbe-ledger
    cp .env.example .env
-   cd ../orbe-services
+   cd ../orbe-taxes
    cp .env.example .env
    ```
 
@@ -192,7 +192,7 @@ O sistema segue uma arquitetura de microserviços modular com comunicação via 
 ### APIs via Kong Gateway
 
 - **Orbe Ledger**: http://localhost:8000/orbe-ledger
-- **Orbe Services**: http://localhost:8000/orbe-services
+- **Orbe Services**: http://localhost:8000/orbe-taxes
 - **Health Checks**: http://localhost:8000/orbe-ledger/health
 
 ### APIs Diretas
@@ -244,7 +244,7 @@ Após o deploy, os serviços estarão disponíveis em:
 
 - **Kong Gateway**: http://localhost:30080
 - **Orbe Ledger**: http://localhost:30080/orbe-ledger
-- **Orbe Services**: http://localhost:30080/orbe-services
+- **Orbe Services**: http://localhost:30080/orbe-taxes
 - **Kong Admin**: http://localhost:30081
 
 #### Comandos úteis
@@ -301,7 +301,7 @@ Após o deploy, os serviços estarão disponíveis nas URLs fornecidas pelo scri
 
 - **Kong Gateway**: URL fornecida pelo Minikube
 - **Orbe Ledger**: `{KONG_URL}/orbe-ledger`
-- **Orbe Services**: `{KONG_URL}/orbe-services`
+- **Orbe Services**: `{KONG_URL}/orbe-taxes`
 - **Kong Admin**: URL fornecida pelo Minikube na porta 8001
 
 #### Comandos úteis
@@ -335,7 +335,7 @@ O projeto inclui manifests Kubernetes completos no diretório `k8s/`:
 - `postgres-init-configmap.yaml` - Script de inicialização do PostgreSQL
 - `postgres.yaml` - Deployment e Service do PostgreSQL com PVC
 - `orbe-ledger.yaml` - Deployment e Service do Orbe Ledger
-- `orbe-services.yaml` - Deployment e Service do Orbe Services
+- `orbe-taxes.yaml` - Deployment e Service do Orbe Services
 - `kong-configmap.yaml` - Configuração do Kong
 - `kong.yaml` - Deployment e Service do Kong
 - `kustomization.yaml` - Kustomize para deploy unificado
@@ -480,9 +480,9 @@ O sistema utiliza uma instância PostgreSQL com múltiplos bancos de dados:
    - Usuário: `orbe-ledger`
    - Senha: `orbe-ledger`
 
-2. **orbe-services**: Banco de dados do catálogo de serviços
-   - Usuário: `orbe-services`
-   - Senha: `orbe-services`
+2. **orbe-taxes**: Banco de dados do catálogo de serviços
+   - Usuário: `orbe-taxes`
+   - Senha: `orbe-taxes`
 
 Cada banco de dados tem seu próprio usuário dedicado para isolamento de responsabilidade.
 
@@ -625,7 +625,7 @@ npm run test:cov
 ## 📚 Documentação
 
 - [Orbe Ledger README](./orbe-ledger/README.md)
-- [Orbe Services README](./orbe-services/README.md)
+- [Orbe Services README](./orbe-taxes/README.md)
 - [Database Setup Guide](./DATABASE_SETUP.md)
 
 ## 🌟 Inspirações

@@ -16,9 +16,7 @@ export class TaxesService {
   async getServiceByCode(code: string) {
     const { data } = await firstValueFrom(
       this.httpService
-        .get<BaseResponse<TaxesServiceResponse>>(
-          `/orbe-services/services/${code}`,
-        )
+        .get<BaseResponse<TaxesServiceResponse>>(`/orbe-taxes/services/${code}`)
         .pipe(
           catchError((error: AxiosError) => {
             throw new Error(`HTTP request failed: ${error.message}`);

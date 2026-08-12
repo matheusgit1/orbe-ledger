@@ -9,7 +9,7 @@ resources:
   - configmap.yaml
   - secret.yaml
   - orbe-ledger.yaml
-  - orbe-services.yaml
+  - orbe-taxes.yaml
   - kong-configmap.yaml
   - kong.yaml
 
@@ -17,6 +17,6 @@ images:
   - name: orbe-ledger
     newName: orbe-ledger
     newTag: latest
-  - name: orbe-services
-    newName: orbe-services
+  - name: orbe-taxes
+    newName: orbe-taxes
     newTag: latest

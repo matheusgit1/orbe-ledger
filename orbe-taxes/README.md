@@ -59,9 +59,9 @@ Este serviço faz parte do ecossistema Core Banking Orbe, integrando-se com:
 # Database
 DB_HOST=localhost
 DB_PORT=5432
-DB_USER=orbe-services
-DB_PASSWORD=orbe-services
-DB_NAME=orbe-services
+DB_USER=orbe-taxes
+DB_PASSWORD=orbe-taxes
+DB_NAME=orbe-taxes
 DB_LOGGING=false
 
 # Server
@@ -103,15 +103,15 @@ http://localhost:3001/api
 
 ### Endpoints Principais
 
-- `GET /orbe-services/services` - Listar serviços disponíveis
-- `POST /orbe-services/services` - Criar novo serviço
-- `GET /orbe-services/services/:code` - Buscar serviço por código
-- `PUT /orbe-services/services/:id` - Atualizar serviço
-- `DELETE /orbe-services/services/:id` - Desativar serviço
+- `GET /orbe-taxes/services` - Listar serviços disponíveis
+- `POST /orbe-taxes/services` - Criar novo serviço
+- `GET /orbe-taxes/services/:code` - Buscar serviço por código
+- `PUT /orbe-taxes/services/:id` - Atualizar serviço
+- `DELETE /orbe-taxes/services/:id` - Desativar serviço
 
 ## 🗄️ Estrutura do Banco de Dados
 
-O serviço utiliza seu próprio banco de dados PostgreSQL (`orbe-services`) com as seguintes entidades principais:
+O serviço utiliza seu próprio banco de dados PostgreSQL (`orbe-taxes`) com as seguintes entidades principais:
 
 - **services**: Catálogo de serviços bancários
 - **taxes**: Configurações de impostos e taxas
@@ -136,7 +136,7 @@ O serviço utiliza seu próprio banco de dados PostgreSQL (`orbe-services`) com 
 
 3. **Para cadastrar novos serviços**:
    ```typescript
-   POST /orbe-services/services
+   POST /orbe-taxes/services
    {
      "code": "PIX_TRANSFER",
      "name": "Transferência PIX",

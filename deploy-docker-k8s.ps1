@@ -33,11 +33,11 @@ if ($LASTEXITCODE -ne 0) {
     exit 1
 }
 
-# Construir imagem do orbe-services
-Write-Host "Construindo imagem do orbe-services..." -ForegroundColor Yellow
-docker build -t orbe-services:latest ./orbe-services
+# Construir imagem do orbe-taxes
+Write-Host "Construindo imagem do orbe-taxes..." -ForegroundColor Yellow
+docker build -t orbe-taxes:latest ./orbe-taxes
 if ($LASTEXITCODE -ne 0) {
-    Write-Host "Erro ao construir imagem do orbe-services" -ForegroundColor Red
+    Write-Host "Erro ao construir imagem do orbe-taxes" -ForegroundColor Red
     exit 1
 }
 
@@ -53,7 +53,7 @@ if ($LASTEXITCODE -ne 0) {
 Write-Host "Aguardando pods ficarem prontos..." -ForegroundColor Yellow
 kubectl wait --for=condition=ready pod -l app=postgres --timeout=300s
 kubectl wait --for=condition=ready pod -l app=orbe-ledger --timeout=300s
-kubectl wait --for=condition=ready pod -l app=orbe-services --timeout=300s
+kubectl wait --for=condition=ready pod -l app=orbe-taxes --timeout=300s
 kubectl wait --for=condition=ready pod -l app=kong --timeout=300s
 
 Write-Host "=== Deploy concluído com sucesso! ===" -ForegroundColor Green
@@ -61,7 +61,7 @@ Write-Host ""
 Write-Host "Serviços disponíveis:" -ForegroundColor Cyan
 Write-Host "  Kong Gateway: http://localhost:30080"
 Write-Host "  Orbe Ledger: http://localhost:30080/orbe-ledger"
-Write-Host "  Orbe Services: http://localhost:30080/orbe-services"
+Write-Host "  Orbe Services: http://localhost:30080/orbe-taxes"
 Write-Host "  Kong Admin: http://localhost:30081"
 Write-Host ""
 Write-Host "Para ver os pods: kubectl get pods" -ForegroundColor Yellow

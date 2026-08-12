@@ -70,19 +70,19 @@ services:
   #     timeout: 5s
   #     retries: 5
 
-  orbe-services:
-    container_name: orbe-services
+  orbe-taxes:
+    container_name: orbe-taxes
     build:
-      context: ./orbe-services
+      context: ./orbe-taxes
       dockerfile: Dockerfile
     ports:
       - "3001:3001"
     environment:
       DB_HOST: db
       DB_PORT: 5432
-      DB_USER: orbe-services
-      DB_PASSWORD: orbe-services
-      DB_NAME: orbe-services
+      DB_USER: orbe-taxes
+      DB_PASSWORD: orbe-taxes
+      DB_NAME: orbe-taxes
     depends_on:
       db:
         condition: service_healthy
@@ -90,7 +90,7 @@ services:
       test:
         [
           "CMD-SHELL",
-          "curl -sf http://localhost:3001/orbe-services/health || exit 1",
+          "curl -sf http://localhost:3001/orbe-taxes/health || exit 1",
         ]
       interval: 10s
       timeout: 5s
@@ -175,8 +175,23 @@ services:
     depends_on:
       orbe-ledger:
         condition: service_healthy
-      orbe-services:
+      orbe-taxes:
         condition: service_healthy
+
+  # cache:
+  #   image: redis:6.2-alpine
+  #   restart: always
+  #   container_name: redis
+  #   environment:
+  #     - REDIS_PORT=6379
+  #     - REDIS_PASSWORD=eYVX7EwVmmxKPCDmwMtyKVge8oLd2t81
+  #   ports:
+  #     - "6379:6379"
+  #   command: redis-server --save 20 1 --loglevel warning --requirepass eYVX7EwVmmxKPCDmwMtyKVge8oLd2t81
+  #   volumes:
+  #     - cache:/data
 
 volumes:
   postgres_data:
+  # cache:
+  #   driver: local

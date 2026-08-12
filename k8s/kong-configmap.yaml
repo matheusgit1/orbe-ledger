@@ -20,14 +20,14 @@ data:
               - /orbe-ledger/health
             strip_path: false
 
-      - name: orbe-services
-        url: http://orbe-services-service:3001
+      - name: orbe-taxes
+        url: http://orbe-taxes-service:3001
         routes:
-          - name: orbe-services-route
+          - name: orbe-taxes-route
             paths:
-              - /orbe-services
+              - /orbe-taxes
             strip_path: false
-          - name: orbe-services-health-route
+          - name: orbe-taxes-health-route
             paths:
-              - /orbe-services/health
+              - /orbe-taxes/health
             strip_path: false

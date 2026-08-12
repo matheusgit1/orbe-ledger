@@ -1,6 +1,6 @@
 -- Criar bancos de dados
 CREATE DATABASE "orbe-ledger";
-CREATE DATABASE "orbe-services";
+CREATE DATABASE "orbe-taxes";
 
 -- Criar usuários e conceder permissões
 -- Usuário para o banco orbe-ledger
@@ -14,16 +14,16 @@ $$;
 
 GRANT ALL PRIVILEGES ON DATABASE "orbe-ledger" TO "orbe-ledger";
 
--- Usuário para o banco orbe-services
+-- Usuário para o banco orbe-taxes
 DO $$
 BEGIN
-  IF NOT EXISTS (SELECT FROM pg_user WHERE usename = 'orbe-services') THEN
-    CREATE USER "orbe-services" WITH PASSWORD 'orbe-services';
+  IF NOT EXISTS (SELECT FROM pg_user WHERE usename = 'orbe-taxes') THEN
+    CREATE USER "orbe-taxes" WITH PASSWORD 'orbe-taxes';
   END IF;
 END
 $$;
 
-GRANT ALL PRIVILEGES ON DATABASE "orbe-services" TO "orbe-services";
+GRANT ALL PRIVILEGES ON DATABASE "orbe-taxes" TO "orbe-taxes";
 
 -- Conectar ao banco orbe-ledger e conceder permissões no schema public
 \c "orbe-ledger"
@@ -31,8 +31,8 @@ GRANT ALL ON SCHEMA public TO "orbe-ledger";
 GRANT ALL ON ALL TABLES IN SCHEMA public TO "orbe-ledger";
 GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO "orbe-ledger";
 
--- Conectar ao banco orbe-services e conceder permissões no schema public
-\c "orbe-services"
-GRANT ALL ON SCHEMA public TO "orbe-services";
-GRANT ALL ON ALL TABLES IN SCHEMA public TO "orbe-services";
-GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO "orbe-services";
+-- Conectar ao banco orbe-taxes e conceder permissões no schema public
+\c "orbe-taxes"
+GRANT ALL ON SCHEMA public TO "orbe-taxes";
+GRANT ALL ON ALL TABLES IN SCHEMA public TO "orbe-taxes";
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO "orbe-taxes";

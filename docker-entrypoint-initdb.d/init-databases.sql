@@ -1,6 +1,6 @@
 -- Criação dos bancos de dados
 CREATE DATABASE "main-ledger";
-CREATE DATABASE "orbe-services";
+CREATE DATABASE "orbe-taxes";
 CREATE DATABASE "spi-simulator";
 
 -- Criação dos usuários e permissões
@@ -9,8 +9,8 @@ CREATE USER "orbe-ledger" WITH PASSWORD 'orbe-ledger';
 GRANT ALL PRIVILEGES ON DATABASE "main-ledger" TO "orbe-ledger";
 
 -- Usuário para o banco services
-CREATE USER "orbe-services" WITH PASSWORD 'orbe-services';
-GRANT ALL PRIVILEGES ON DATABASE "orbe-services" TO "orbe-services";
+CREATE USER "orbe-taxes" WITH PASSWORD 'orbe-taxes';
+GRANT ALL PRIVILEGES ON DATABASE "orbe-taxes" TO "orbe-taxes";
 
 -- Usuário para o banco spi-simulator
 CREATE USER "spi-simulator" WITH PASSWORD 'spi-simulator';
@@ -23,10 +23,10 @@ GRANT ALL ON ALL TABLES IN SCHEMA public TO "orbe-ledger";
 GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO "orbe-ledger";
 
 -- Conectar ao banco services e conceder permissões no schema public
-\c "orbe-services"
-GRANT ALL ON SCHEMA public TO "orbe-services";
-GRANT ALL ON ALL TABLES IN SCHEMA public TO "orbe-services";
-GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO "orbe-services";
+\c "orbe-taxes"
+GRANT ALL ON SCHEMA public TO "orbe-taxes";
+GRANT ALL ON ALL TABLES IN SCHEMA public TO "orbe-taxes";
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO "orbe-taxes";
 
 -- -- Conectar ao banco spi-simulator e conceder permissões no schema public
 -- \c "spi-simulator"

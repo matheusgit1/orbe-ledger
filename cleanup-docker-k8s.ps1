@@ -12,7 +12,7 @@ $response = Read-Host
 if ($response -eq 'y' -or $response -eq 'Y') {
     Write-Host "Removendo imagens Docker..." -ForegroundColor Yellow
     docker rmi orbe-ledger:latest 2>$null
-    docker rmi orbe-services:latest 2>$null
+    docker rmi orbe-taxes:latest 2>$null
     Write-Host "Imagens removidas." -ForegroundColor Green
 }
 

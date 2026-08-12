@@ -26,7 +26,7 @@ async function bootstrap(): Promise<void> {
     }),
   );
 
-  app.setGlobalPrefix('orbe-services');
+  app.setGlobalPrefix('orbe-taxes');
   app.enableVersioning({
     type: VersioningType.URI,
   });

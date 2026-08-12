@@ -15,7 +15,7 @@ echo
 if [[ $REPLY =~ ^[Yy]$ ]]; then
     echo "Removendo imagens Docker..."
     docker rmi orbe-ledger:latest 2>/dev/null || true
-    docker rmi orbe-services:latest 2>/dev/null || true
+    docker rmi orbe-taxes:latest 2>/dev/null || true
     echo "Imagens removidas."
 fi
 
