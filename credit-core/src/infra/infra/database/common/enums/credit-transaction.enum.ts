@@ -1,0 +1,17 @@
+export enum CreditTransactionType {
+  PURCHASE = 'PURCHASE',
+  CASH_ADVANCE = 'CASH_ADVANCE',
+  PAYMENT = 'PAYMENT',
+  INTEREST = 'INTEREST',
+  FEE = 'FEE',
+  PENALTY = 'PENALTY',
+  REFUND = 'REFUND',
+  ADJUSTMENT = 'ADJUSTMENT',
+  CHARGEBACK = 'CHARGEBACK',
+}
+
+export enum CreditTransactionStatus {
+  PENDING = 'PENDING',
+  POSTED = 'POSTED',
+  REVERSED = 'REVERSED',
+}
