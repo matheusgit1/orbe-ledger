@@ -8,6 +8,7 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
 import { OrmModule } from 'src/infra/infra/database/orm/orm.module';
 import { TracingMiddleware } from 'src/middlewares/tracing.middleware';
 import { HealthModule } from '../health/health.module';
+import { HoldModule } from '../hold/hold.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { HealthModule } from '../health/health.module';
     EventEmitterModule.forRoot({}),
     OrmModule,
     HealthModule,
+    HoldModule
   ],
   controllers: [],
   providers: [
