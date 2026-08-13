@@ -78,8 +78,8 @@ services:
     environment:
       DB_HOST: db
       DB_PORT: 5432
-      DB_USER: credit-core
-      DB_PASSWORD: credit-core
+      DB_USER: orbe-ledger
+      DB_PASSWORD: orbe-ledger
       DB_NAME: credit-core
     depends_on:
       db:

@@ -2,6 +2,7 @@
 CREATE DATABASE "main-ledger";
 CREATE DATABASE "orbe-taxes";
 CREATE DATABASE "spi-simulator";
+CREATE DATABASE "credit-core";
 
 -- Criação dos usuários e permissões
 -- Usuário para o banco ledger
@@ -28,8 +29,14 @@ GRANT ALL ON SCHEMA public TO "orbe-taxes";
 GRANT ALL ON ALL TABLES IN SCHEMA public TO "orbe-taxes";
 GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO "orbe-taxes";
 
--- -- Conectar ao banco spi-simulator e conceder permissões no schema public
+-- Conectar ao banco spi-simulator e conceder permissões no schema public
 -- \c "spi-simulator"
 -- GRANT ALL ON SCHEMA public TO "spi-simulator";
 -- GRANT ALL ON ALL TABLES IN SCHEMA public TO "spi-simulator";
 -- GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO "spi-simulator";
+
+-- Conectar ao banco credit-core e conceder permissões no schema public
+\c "credit-core"
+GRANT ALL ON SCHEMA public TO "credit-core";
+GRANT ALL ON ALL TABLES IN SCHEMA public TO "credit-core";
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO "credit-core";
