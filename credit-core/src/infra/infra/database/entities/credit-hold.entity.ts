@@ -13,8 +13,7 @@ import { CreditAuthorization } from './credit-authorization.entity';
 import { CreditHoldStatus } from '../common/enums/credit-hold.enum';
 
 @Entity('credit_holds')
-@Index(['credit_account_id'])
-@Index(['authorization_id'])
+@Index(['creditAccountId', 'authorizationId'])
 export class CreditHold {
   @PrimaryColumn({
     type: 'uuid',

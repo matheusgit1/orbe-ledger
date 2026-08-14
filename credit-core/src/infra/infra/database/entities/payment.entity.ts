@@ -13,8 +13,7 @@ import { Statement } from './statement.entity';
 import { PaymentType, PaymentStatus } from '../common/enums/payment.enum';
 
 @Entity('payments')
-@Index(['credit_account_id'])
-@Index(['statement_id'])
+@Index(['creditAccountId', 'statementId'])
 export class Payment {
   @PrimaryColumn({
     type: 'uuid',

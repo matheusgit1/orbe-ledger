@@ -12,7 +12,7 @@ import { CreditAccount } from './credit-account.entity';
 import { CreditAuthorizationType } from '../common/enums/credit-authorization.enum';
 
 @Entity('credit_authorizations')
-@Index(['credit_account_id_idx'], { unique: true })
+@Index(['creditAccountId'])
 export class CreditAuthorization {
   @PrimaryColumn({
     type: 'uuid',

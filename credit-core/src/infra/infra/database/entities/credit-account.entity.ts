@@ -2,7 +2,10 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   JoinColumn,
+  JoinTable,
+  ManyToMany,
   ManyToOne,
   OneToMany,
   PrimaryColumn,
@@ -13,6 +16,7 @@ import { CreditProduct } from './credit-product.entity';
 import { CreditLimit } from './credit-limit.entity';
 
 @Entity('credit_accounts')
+@Index(['accountId'])
 export class CreditAccount {
   @PrimaryColumn({
     type: 'uuid',
@@ -21,11 +25,11 @@ export class CreditAccount {
   id: string;
 
   //customer_id
-  @Column({
-    type: 'uuid',
-    name: 'customer_id',
-  })
-  customerId: string;
+  // @Column({
+  //   type: 'uuid',
+  //   name: 'customer_id',
+  // })
+  // customerId: string;
 
   //account_id
   @Column({
@@ -33,13 +37,6 @@ export class CreditAccount {
     name: 'account_id',
   })
   accountId: string;
-
-  //productId
-  @Column({
-    type: 'uuid',
-    name: 'product_id',
-  })
-  productId: string;
 
   @Column({
     type: 'enum',
@@ -75,9 +72,13 @@ export class CreditAccount {
   updatedAt: Date;
 
   //relations
-  @ManyToOne(() => CreditProduct, (product) => product.accounts)
-  @JoinColumn({ name: 'product_id' })
-  creditProduct: CreditProduct;
+  @ManyToMany(() => CreditProduct, (product) => product.accounts)
+  @JoinTable({
+    name: 'account_products',
+    joinColumn: { name: 'credit_account_id' },
+    inverseJoinColumn: { name: 'credit_product_id' },
+  })
+  creditProducts: CreditProduct[];
 
   @OneToMany(() => CreditLimit, (limit) => limit.creditAccount)
   creditLimits: CreditLimit[];

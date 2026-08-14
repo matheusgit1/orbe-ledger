@@ -16,8 +16,8 @@ import {
 } from '../common/enums/credit-transaction.enum';
 
 @Entity('credit_transactions')
-@Index(['credit_account_id'])
-@Index(['utilization_id'])
+@Index(['creditAccountId','utilizationId'])
+// @Index([''])
 export class CreditTransaction {
   @PrimaryColumn({
     type: 'uuid',

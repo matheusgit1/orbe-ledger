@@ -1,6 +1,9 @@
 import { Module } from "@nestjs/common";
+import { CreditRulesService } from "./services/credit-rules.service";
 
-const services = []
+const services = [
+  CreditRulesService
+]
 
 @Module({
   imports: [],

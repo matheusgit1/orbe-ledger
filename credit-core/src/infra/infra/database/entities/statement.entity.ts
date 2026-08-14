@@ -13,8 +13,7 @@ import { BillingCycle } from './billing-cycle.entity';
 import { BillingCycleStatus } from '../common/enums/billing-cycle.enum';
 
 @Entity('statements')
-@Index(['billing_cycle_id'])
-@Index(['credit_account_id'])
+@Index(['billingCycleId', 'creditAccountId'])
 export class Statement {
   @PrimaryColumn({
     type: 'uuid',

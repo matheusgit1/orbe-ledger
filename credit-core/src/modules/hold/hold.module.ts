@@ -9,7 +9,10 @@ import { CoreModule } from 'src/core/core.module';
 import { OrchestratorModule } from 'src/core/orchestrator/orchestrator.module';
 
 @Module({
-  imports: [OrmRepositoryModule, CoreModule, OrchestratorModule,
+  imports: [
+    OrmRepositoryModule,
+    CoreModule,
+    OrchestratorModule,
     // ProxyModule
   ],
   controllers: [HoldController],

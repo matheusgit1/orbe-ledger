@@ -9,13 +9,18 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { CreditAccount } from './credit-account.entity';
+import { CreditProduct } from './credit-product.entity';
 import { CreditLimitStatus } from '../common/enums/credit-limits.enum';
 
 @Entity('credit_limits')
-@Index(['credit_account_id'])
+@Index(['creditAccountId', 'creditProductId'])
 export class CreditLimit {
   @PrimaryGeneratedColumn('uuid')
   id: string;
+
+  //credit_product_id
+  @Column({ name: 'credit_product_id' })
+  creditProductId: string;
 
   //credit_account_id
   @Column({ name: 'credit_account_id' })
@@ -47,6 +52,13 @@ export class CreditLimit {
   @Column({ name: 'valid_to', nullable: true })
   validTo: Date;
 
+  @Column({
+    type: 'json',
+    name: 'metadata',
+    nullable: true,
+  })
+  metadata?: Record<string, any>;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 
@@ -57,4 +69,8 @@ export class CreditLimit {
   @ManyToOne(() => CreditAccount, (creditAccount) => creditAccount.creditLimits)
   @JoinColumn({ name: 'credit_account_id' })
   creditAccount: CreditAccount;
+
+  @ManyToOne(() => CreditProduct, (creditProduct) => creditProduct.creditLimits)
+  @JoinColumn({ name: 'credit_product_id' })
+  creditProduct: CreditProduct;
 }

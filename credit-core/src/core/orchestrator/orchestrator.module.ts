@@ -1,8 +1,9 @@
 import { Module } from '@nestjs/common';
+import { CoreModule } from '../core.module';
 
 const services = [];
 @Module({
-  imports: [],
+  imports: [CoreModule],
   providers: services,
   exports: services,
 })

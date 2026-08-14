@@ -3,16 +3,18 @@ import {
   CreateDateColumn,
   Entity,
   Index,
+  ManyToMany,
   OneToMany,
   PrimaryColumn,
   UpdateDateColumn,
 } from 'typeorm';
 import { CreditProductStatus } from '../common/enums/credit-products.enum';
 import { CreditAccount } from './credit-account.entity';
+import { CreditLimit } from './credit-limit.entity';
 
 @Entity('credit_products')
-@Index('code', { unique: true })
-@Index(['currency_code'])
+@Index(['code'], { unique: true })
+@Index(['currencyCode'])
 export class CreditProduct {
   @PrimaryColumn({
     type: 'uuid',
@@ -84,6 +86,9 @@ export class CreditProduct {
   createdAt: Date;
 
   //relations
-  @OneToMany(() => CreditAccount, (account) => account.creditProduct)
+  @ManyToMany(() => CreditAccount, (account) => account.creditProducts)
   accounts: CreditAccount[];
+
+  @OneToMany(() => CreditLimit, (limit) => limit.creditProduct)
+  creditLimits: CreditLimit[];
 }
